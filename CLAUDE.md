@@ -74,6 +74,38 @@ Tidak memakai Redis. Tidak memakai microservice. Supabase hanya opsional untuk d
 - Deploy online opsional, dikerjakan paling akhir.
 - Akun organizer dibuat lewat seed, bukan lewat halaman daftar.
 
+## Fakta teknis yang sudah ada di kode (PR #1 sampai #4)
+
+Fondasi:
+- `createApp({ db, clock, auth })` menerima semua dependensi dari luar. `index.ts` memberi `systemClock` dan config asli; test memberi DB Testcontainers, `createFakeClock`, dan `testAuthSettings`, lalu memanggil `app.request()` tanpa server. Modul baru ikut pola ini: `createXService({ db, clock? })` dirakit di `createApp`.
+- Lapisan per modul: `handler` (HTTP), `schemas` (Zod), `service` (batas transaksi), `queries` (SQL), `views` (bentuk respons). Fungsi query menerima `Executor` (`Database | Transaction`) supaya bisa dipanggil di dalam transaksi.
+- Body dan param divalidasi lewat `parseJsonBody` / `parseParams` di `shared/validation.ts`. JSON rusak 400 `INVALID_JSON`, gagal Zod 400 `VALIDATION_ERROR`.
+- Kode error yang sudah dipakai: `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHORIZED`, `INVALID_TOKEN`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `EMAIL_TAKEN`, `EVENT_NOT_FOUND`, `NOT_FOUND`, `DATABASE_UNAVAILABLE` (503 dari `/health`), `INTERNAL_ERROR`.
+- Migrasi dijalankan programatik lewat drizzle migrator (`dist/migrate.js`), karena `drizzle-kit` hanya devDependency dan tidak ada di image produksi. Service `api` di compose menjalankan migrasi saat start.
+- Skema awal sudah memuat `orders`, `tickets`, `idempotency_keys`, `processed_events`. FK komposit `orders(ticket_type_id, event_id) -> ticket_types(id, event_id)` menjamin tipe tiket milik event yang sama. Tiap status akhir punya CHECK kolom waktunya (`paid_at`, `cancelled_at`, dst).
+
+Auth:
+- `bcryptjs` (JS murni, algoritma bcrypt sama), bukan `bcrypt` native, supaya image Alpine dan CI tidak butuh toolchain build. Cost 10. Password maksimal 72 byte karena bcrypt diam diam memotong sisanya.
+- Email `citext` (unik tanpa beda huruf besar kecil). Duplikat dideteksi lewat `ON CONFLICT DO NOTHING`, bukan menangkap error pg.
+- Register selalu membuat buyer; field `role` dari klien diabaikan.
+- Login dengan email tidak dikenal dan password salah memberi respons identik (401 `INVALID_CREDENTIALS`), dan waktu hash dijaga mirip lewat dummy hash.
+- JWT HS256, klaim `user_id`, `role`, `iat`, `exp`. `exp` wajib karena Hono hanya memeriksa kedaluwarsa kalau klaim itu ada. `JWT_SECRET` minimal 32 karakter, `JWT_EXPIRES_IN` berformat `30m` / `1h` / `7d`.
+- Tanpa token atau token rusak 401, peran salah 403. `GET /auth/me` menolak 401 kalau akun pemilik token sudah tidak ada.
+- Seed organizer jalan setiap API start: idempotent, aman dari beberapa replika sekaligus, tidak menimpa password akun yang sudah ada, gagal kalau email itu milik buyer. `ORGANIZER_EMAIL` dan `ORGANIZER_PASSWORD` harus diisi berpasangan.
+
+Events:
+- Event dan kedua tipe tiketnya dibuat dalam satu transaksi. Wajib tepat dua tipe: satu REGULAR, satu VIP.
+- Harga dan kuota bilangan bulat 0 ke atas (0 boleh). Batas atas harga 100.000.000 dan kuota 1.000.000, supaya harga x 4 tiket tetap muat di kolom `integer` Postgres (`total_price`).
+- Endpoint publik hanya menampilkan `remaining = quota - sold - reserved`. `quota`, `sold`, `reserved`, dan `organizerId` hanya muncul di `GET /organizer/events/:id`.
+- Organizer bukan pemilik mendapat 403, bukan 404, karena keberadaan event sudah publik lewat `GET /events/:id`. Event yang tidak ada 404 `EVENT_NOT_FOUND`. Id bukan uuid 400 `VALIDATION_ERROR`.
+- `GET /events` memuat semua event (termasuk yang sudah lewat), urut `startsAt` naik, tanpa paginasi. Event tidak harus di masa depan saat dibuat.
+
+Lingkungan lokal dan CI:
+- Postgres compose dibuka di port host 5433, karena 5432 sering dipakai Postgres lokal. Di dalam jaringan compose API tetap memakai `postgres:5432`.
+- Compose punya `JWT_SECRET` default khusus dev supaya `docker compose up` jalan di clone bersih. Jangan dipakai di luar lokal.
+- Image API multi-stage dan berjalan sebagai user non-root `node`.
+- CI: job `test` (typecheck + Testcontainers) di setiap push dan PR; `build-and-push` ke `ghcr.io/fabverse0/quotient-ticketing` hanya dari push ke `main`, tag `sha-<short>` dan `latest`.
+
 ## Nilai tambah yang direncanakan
 
 1. Strategi kuota `QUOTA_STRATEGY=naive|atomic` untuk membuktikan versi naif bisa oversell.
