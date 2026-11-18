@@ -1,11 +1,17 @@
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
+import { seedOrganizer } from "./modules/auth/seed.js";
 import { systemClock } from "./shared/clock.js";
 import { loadConfig } from "./shared/config.js";
 import { createDatabase } from "./shared/db/client.js";
 
 const config = loadConfig();
 const { db, close } = createDatabase(config);
+if (config.organizer) {
+  const result = await seedOrganizer(db, config.organizer);
+  console.log(`Organizer account ${config.organizer.email}: ${result}`);
+}
+
 const app = createApp({
   db,
   clock: systemClock,
