@@ -28,6 +28,7 @@ services:
       DB_POOL_MAX: ${DB_POOL_MAX:-10}
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-before-any-real-use}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      QUOTA_STRATEGY: ${QUOTA_STRATEGY:-atomic}
       ORGANIZER_EMAIL: ${ORGANIZER_EMAIL:-}
       ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-}
     ports:

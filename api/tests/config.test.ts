@@ -16,6 +16,7 @@ describe("loadConfig", () => {
       dbPoolMax: 10,
       jwtSecret: validEnv.JWT_SECRET,
       jwtExpiresInSeconds: 3600,
+      quotaStrategy: "atomic",
     });
     expect(config.organizer).toBeUndefined();
   });
@@ -78,5 +79,13 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...validEnv, ORGANIZER_EMAIL: "admin@quotient.test" })).toThrow(
       /ORGANIZER_PASSWORD/,
     );
+  });
+
+  it("accepts the naive quota strategy", () => {
+    expect(loadConfig({ ...validEnv, QUOTA_STRATEGY: "naive" }).quotaStrategy).toBe("naive");
+  });
+
+  it("rejects an unknown QUOTA_STRATEGY", () => {
+    expect(() => loadConfig({ ...validEnv, QUOTA_STRATEGY: "optimistic" })).toThrow(/QUOTA_STRATEGY/);
   });
 });
