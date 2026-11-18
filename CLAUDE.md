@@ -12,6 +12,13 @@ Nama "Quotient" berarti hasil bagi: kuota yang terbatas dibagi tepat ke banyak p
 - DECISIONS.md ditulis oleh Fab. Boleh bantu merapikan, tapi jangan mengarang alasan.
 - Bahasa dokumentasi: Indonesia yang natural. Kode, nama variabel, dan pesan commit dalam bahasa Inggris.
 
+## Aturan commit dan PR
+
+- Satu branch per modul (`feat/app-foundation`, `feat/orders`, `feat/payments`, ...), satu PR per modul. Jangan push pekerjaan modul langsung ke `main`.
+- Atomic commit: satu commit berisi satu perubahan logis yang utuh. Build dan test harus lulus di setiap commit, bukan hanya di commit terakhir. Jangan memecah commit hanya supaya jumlahnya banyak.
+- Format Conventional Commits dengan scope: `feat(config): validate env with zod`. Tipe yang dipakai: feat, fix, chore, test, docs, refactor. Pesan commit dalam bahasa Inggris.
+- Fab yang merge PR, dengan **rebase merge** (bukan squash) supaya setiap commit atomic tetap ada di `main`. Claude tidak merge PR.
+
 ## Stack
 
 | Lapisan | Pilihan |
