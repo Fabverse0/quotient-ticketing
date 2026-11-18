@@ -11,6 +11,7 @@ import {
   findTicketTypeForOrder,
   insertIdempotencyKey,
   insertPendingOrder,
+  listOrdersForBuyer,
   lockBuyerEvent,
   lockIdempotencyKey,
   releaseReservation,
@@ -146,6 +147,21 @@ export function createOrdersService({
         }
         return toOrderView(current);
       });
+    },
+
+    async list(buyerId: string): Promise<OrderView[]> {
+      const rows = await listOrdersForBuyer(db, buyerId);
+      return rows.map(toOrderView);
+    },
+
+    // Another buyer's order gets the same 404 as a missing one: unlike an
+    // event, the existence of an order is private.
+    async get(buyerId: string, orderId: string): Promise<OrderView> {
+      const found = await findOrderForBuyer(db, orderId, buyerId);
+      if (!found) {
+        throw new AppError(404, "ORDER_NOT_FOUND", "Pesanan tidak ditemukan");
+      }
+      return toOrderView(found);
     },
   };
 }
