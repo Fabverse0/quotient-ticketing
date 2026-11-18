@@ -5,6 +5,7 @@ import { createFakeClock } from "./helpers/fake-clock.js";
 import { startTestDatabase } from "./helpers/postgres.js";
 
 const clock = createFakeClock(new Date("2026-11-21T10:00:00Z"));
+const auth = { secret: "a-test-secret-that-is-at-least-32-chars", expiresInSeconds: 3600 };
 
 describe("GET /health", () => {
   let testDb: Awaited<ReturnType<typeof startTestDatabase>>;
@@ -18,7 +19,7 @@ describe("GET /health", () => {
   });
 
   it("returns 200 when the real Postgres answers", async () => {
-    const app = createApp({ db: testDb.db, clock });
+    const app = createApp({ db: testDb.db, clock, auth });
     const res = await app.request("/health");
 
     expect(res.status).toBe(200);
@@ -36,7 +37,7 @@ describe("GET /health", () => {
       dbPoolMax: 1,
     });
 
-    const app = createApp({ db: unreachable.db, clock });
+    const app = createApp({ db: unreachable.db, clock, auth });
     const res = await app.request("/health");
 
     expect(res.status).toBe(503);
