@@ -8,8 +8,13 @@ type App = ReturnType<typeof createApp>;
 export const TEST_JWT_SECRET = "a-test-secret-that-is-at-least-32-chars";
 export const testAuthSettings = { secret: TEST_JWT_SECRET, expiresInSeconds: 3600 };
 
-export function call(app: App, method: string, path: string, options: { token?: string; body?: unknown } = {}) {
-  const headers: Record<string, string> = {};
+export function call(
+  app: App,
+  method: string,
+  path: string,
+  options: { token?: string; body?: unknown; headers?: Record<string, string> } = {},
+) {
+  const headers: Record<string, string> = { ...options.headers };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   return app.request(path, {

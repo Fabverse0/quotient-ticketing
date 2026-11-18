@@ -9,3 +9,7 @@ export const createOrderSchema = z.object({
 });
 
 export type CreateOrderInput = z.output<typeof createOrderSchema>;
+
+export const idempotencyHeaderSchema = z.object({
+  "Idempotency-Key": z.string().min(1).max(255).optional(),
+});
