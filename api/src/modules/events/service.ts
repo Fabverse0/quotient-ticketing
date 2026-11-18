@@ -27,6 +27,17 @@ export function createEventsService({ db }: { db: Database }) {
       }
       return toPublicEvent(found.event, found.types);
     },
+
+    async getForOrganizer(id: string, organizerId: string) {
+      const found = await findEventWithTypes(db, id);
+      if (!found) {
+        throw new AppError(404, "EVENT_NOT_FOUND", "Event tidak ditemukan");
+      }
+      if (found.event.organizerId !== organizerId) {
+        throw new AppError(403, "FORBIDDEN", "Anda bukan pemilik event ini");
+      }
+      return toOrganizerEvent(found.event, found.types);
+    },
   };
 }
 

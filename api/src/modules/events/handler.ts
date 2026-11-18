@@ -21,3 +21,16 @@ export function eventRoutes(service: EventsService, secret: string) {
 
   return routes;
 }
+
+export function organizerEventRoutes(service: EventsService, secret: string) {
+  const routes = new Hono<AuthEnv>();
+
+  routes.use("*", requireAuth(secret), requireRole("organizer"));
+
+  routes.get("/:id", async (c) => {
+    const { id } = parseParams(c, eventIdParamSchema);
+    return c.json(await service.getForOrganizer(id, c.get("auth").userId));
+  });
+
+  return routes;
+}
