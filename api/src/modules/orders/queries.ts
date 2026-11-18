@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Executor } from "../../shared/db/client.js";
-import { events, orders, ticketTypes } from "../../shared/db/schema.js";
+import { events, idempotencyKeys, orders, ticketTypes } from "../../shared/db/schema.js";
 
 export type OrderRow = typeof orders.$inferSelect;
 export type TicketKind = (typeof ticketTypes.$inferSelect)["kind"];
@@ -69,4 +69,40 @@ export async function insertPendingOrder(
     .values({ ...values, status: "PENDING" })
     .returning();
   return row!;
+}
+
+// Serializes requests that share a key, so two copies of one request cannot
+// both miss the lookup below. The prefix keeps it apart from lockBuyerEvent.
+export async function lockIdempotencyKey(tx: Executor, buyerId: string, key: string): Promise<void> {
+  await tx.execute(sql`
+    SELECT pg_advisory_xact_lock(hashtextextended('idem:' || ${buyerId}::text || ':' || ${key}, 0))
+  `);
+}
+
+export async function findIdempotencyKey(tx: Executor, buyerId: string, key: string) {
+  const [row] = await tx
+    .select({ requestHash: idempotencyKeys.requestHash, orderId: idempotencyKeys.orderId })
+    .from(idempotencyKeys)
+    .where(and(eq(idempotencyKeys.buyerId, buyerId), eq(idempotencyKeys.key, key)))
+    .limit(1);
+  return row;
+}
+
+export async function insertIdempotencyKey(tx: Executor, values: typeof idempotencyKeys.$inferInsert): Promise<void> {
+  await tx.insert(idempotencyKeys).values(values);
+}
+
+export async function findOrderForBuyer(
+  db: Executor,
+  orderId: string,
+  buyerId: string,
+): Promise<OrderWithContext | undefined> {
+  const [row] = await db
+    .select({ order: orders, eventTitle: events.title, eventStartsAt: events.startsAt, ticketKind: ticketTypes.kind })
+    .from(orders)
+    .innerJoin(events, eq(events.id, orders.eventId))
+    .innerJoin(ticketTypes, eq(ticketTypes.id, orders.ticketTypeId))
+    .where(and(eq(orders.id, orderId), eq(orders.buyerId, buyerId)))
+    .limit(1);
+  return row;
 }
