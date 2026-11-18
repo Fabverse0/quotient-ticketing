@@ -5,6 +5,7 @@ import { AppError } from "../../shared/errors.js";
 import { withCapacityGuard } from "./capacity-guard.js";
 import {
   activeTicketCount,
+  cancelPendingOrder,
   findIdempotencyKey,
   findOrderForBuyer,
   findTicketTypeForOrder,
@@ -12,6 +13,7 @@ import {
   insertPendingOrder,
   lockBuyerEvent,
   lockIdempotencyKey,
+  releaseReservation,
 } from "./queries.js";
 import { MAX_TICKETS_PER_BUYER_PER_EVENT, ORDER_HOLD_MS, type CreateOrderInput } from "./schemas.js";
 import { atomicStrategy, type QuotaStrategy } from "./strategy.js";
@@ -119,6 +121,31 @@ export function createOrdersService({
           return { order, replayed: false };
         }),
       );
+    },
+
+    // Lock order: the orders row first, then ticket_types. Only the
+    // transaction that won the status transition gives the quota back.
+    async cancel(buyerId: string, orderId: string): Promise<OrderView> {
+      return db.transaction(async (tx) => {
+        const now = clock.now();
+        const cancelled = await cancelPendingOrder(tx, orderId, buyerId, now);
+        if (cancelled) {
+          await releaseReservation(tx, cancelled.ticketTypeId, cancelled.quantity);
+        }
+
+        const current = await findOrderForBuyer(tx, orderId, buyerId);
+        if (!current) {
+          throw new AppError(404, "ORDER_NOT_FOUND", "Pesanan tidak ditemukan");
+        }
+        if (!cancelled) {
+          // Still PENDING here means the guard failed on expires_at.
+          if (current.order.status === "PENDING") {
+            throw new AppError(409, "ORDER_EXPIRED", "Waktu tahan pesanan sudah habis");
+          }
+          throw new AppError(409, "ORDER_NOT_PENDING", "Pesanan sudah tidak berstatus PENDING");
+        }
+        return toOrderView(current);
+      });
     },
   };
 }

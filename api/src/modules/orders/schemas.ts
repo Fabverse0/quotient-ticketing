@@ -13,3 +13,5 @@ export type CreateOrderInput = z.output<typeof createOrderSchema>;
 export const idempotencyHeaderSchema = z.object({
   "Idempotency-Key": z.string().min(1).max(255).optional(),
 });
+
+export const orderIdParamSchema = z.object({ id: z.uuid() });
