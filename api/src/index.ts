@@ -1,0 +1,27 @@
+import { serve } from "@hono/node-server";
+import { createApp } from "./app.js";
+import { systemClock } from "./shared/clock.js";
+import { loadConfig } from "./shared/config.js";
+import { createDatabase } from "./shared/db/client.js";
+
+const config = loadConfig();
+const { db, close } = createDatabase(config);
+const app = createApp({ db, clock: systemClock });
+
+const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
+  console.log(`Quotient API listening on port ${info.port} (${config.nodeEnv})`);
+});
+
+let shuttingDown = false;
+function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received, shutting down`);
+  server.close(async (err) => {
+    await close();
+    process.exit(err ? 1 : 0);
+  });
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
