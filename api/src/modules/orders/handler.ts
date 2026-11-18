@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { parseJsonBody } from "../../shared/validation.js";
+import { parseJsonBody, parseParams } from "../../shared/validation.js";
 import { requireAuth, requireRole, type AuthEnv } from "../auth/middleware.js";
-import { createOrderSchema, idempotencyHeaderSchema } from "./schemas.js";
+import { createOrderSchema, idempotencyHeaderSchema, orderIdParamSchema } from "./schemas.js";
 import type { OrdersService } from "./service.js";
 
 export function orderRoutes(service: OrdersService, secret: string) {
@@ -14,6 +14,11 @@ export function orderRoutes(service: OrdersService, secret: string) {
     const headers = idempotencyHeaderSchema.parse({ "Idempotency-Key": c.req.header("Idempotency-Key") });
     const { order, replayed } = await service.create(c.get("auth").userId, input, headers["Idempotency-Key"]);
     return c.json(order, replayed ? 200 : 201);
+  });
+
+  routes.post("/:id/cancel", async (c) => {
+    const { id } = parseParams(c, orderIdParamSchema);
+    return c.json(await service.cancel(c.get("auth").userId, id));
   });
 
   return routes;

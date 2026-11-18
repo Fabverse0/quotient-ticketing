@@ -106,3 +106,29 @@ export async function findOrderForBuyer(
     .limit(1);
   return row;
 }
+
+// The status guard makes this the single winner among cancel, pay, and expire:
+// whichever UPDATE matches the PENDING row first gets it, the rest get 0 rows.
+// The expires_at guard keeps an order the sweeper has not reached yet from
+// being cancelled after its hold ended.
+export async function cancelPendingOrder(
+  tx: Executor,
+  orderId: string,
+  buyerId: string,
+  now: Date,
+): Promise<{ ticketTypeId: string; quantity: number } | undefined> {
+  const { rows } = await tx.execute<{ ticketTypeId: string; quantity: number }>(sql`
+    UPDATE orders
+    SET status = 'CANCELLED', cancelled_at = ${now}
+    WHERE id = ${orderId} AND buyer_id = ${buyerId} AND status = 'PENDING' AND expires_at > ${now}
+    RETURNING ticket_type_id AS "ticketTypeId", quantity
+  `);
+  return rows[0];
+}
+
+// Relative decrement, never an absolute write, whatever QUOTA_STRATEGY is.
+export async function releaseReservation(tx: Executor, ticketTypeId: string, quantity: number): Promise<void> {
+  await tx.execute(sql`
+    UPDATE ticket_types SET reserved = reserved - ${quantity} WHERE id = ${ticketTypeId}
+  `);
+}
