@@ -55,6 +55,7 @@ Tidak memakai Redis. Tidak memakai microservice. Supabase hanya opsional untuk d
 
 - Kuota dipotong dengan atomic conditional update di dalam transaksi yang sama dengan pembuatan pesanan.
 - `CHECK (sold + reserved <= quota)` di tabel tipe tiket sebagai pengaman terakhir.
+- Kuota habis dideteksi dari atomic update yang mengembalikan 0 baris, itu jalur normal. Kalau constraint `ticket_types_capacity` yang menolak, itu bug di kode, bukan kuota habis biasa. Klien tetap menerima 409 `QUOTA_EXHAUSTED`, tapi server mencatatnya sebagai error dengan pesan "capacity guard triggered". Drizzle membungkus error pg, nama constraint ada di `error.cause.constraint`.
 - Batas 4 tiket dijaga dengan `pg_advisory_xact_lock` per (buyer_id, event_id).
 - Transisi status selalu `UPDATE ... WHERE id = $1 AND status = 'PENDING' RETURNING`. Hanya pemenang yang menerbitkan tiket atau mengembalikan kuota.
 - `UNIQUE` di tabel tiket untuk mencegah penerbitan ganda.
