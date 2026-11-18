@@ -11,3 +11,7 @@ export async function parseJsonBody<S extends z.ZodType>(c: Context, schema: S):
   }
   return schema.parse(body);
 }
+
+export function parseParams<S extends z.ZodType>(c: Context, schema: S): z.output<S> {
+  return schema.parse(c.req.param());
+}

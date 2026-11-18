@@ -23,3 +23,5 @@ export const createEventSchema = z.object({
 });
 
 export type CreateEventInput = z.output<typeof createEventSchema>;
+
+export const eventIdParamSchema = z.object({ id: z.uuid() });

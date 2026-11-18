@@ -27,3 +27,19 @@ export function toOrganizerEvent(event: EventRow, types: TicketTypeRow[]) {
     })),
   };
 }
+
+export function toPublicEvent(event: EventRow, types: TicketTypeRow[]) {
+  return {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    venue: event.venue,
+    startsAt: event.startsAt,
+    ticketTypes: [...types].sort(byKind).map((t) => ({
+      id: t.id,
+      kind: t.kind,
+      price: t.price,
+      remaining: remaining(t),
+    })),
+  };
+}
