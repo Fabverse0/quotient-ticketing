@@ -4,6 +4,8 @@ import type { Config } from "../config.js";
 import * as schema from "./schema.js";
 
 export type Database = ReturnType<typeof createDatabase>["db"];
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Executor = Database | Transaction;
 
 export function createDatabase(config: Pick<Config, "databaseUrl" | "dbPoolMax">) {
   const pool = new Pool({

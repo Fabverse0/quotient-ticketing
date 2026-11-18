@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { authRoutes } from "./modules/auth/handler.js";
 import { createAuthService, type AuthSettings } from "./modules/auth/service.js";
+import { eventRoutes } from "./modules/events/handler.js";
+import { createEventsService } from "./modules/events/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { Database } from "./shared/db/client.js";
 import { AppError, registerErrorHandling } from "./shared/errors.js";
@@ -30,6 +32,7 @@ export function createApp({ db, clock, auth }: AppDeps) {
   const app = new Hono();
 
   app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
+  app.route("/events", eventRoutes(createEventsService({ db }), auth.secret));
 
   app.get("/health", async (c) => {
     try {
