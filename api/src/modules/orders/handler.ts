@@ -9,6 +9,13 @@ export function orderRoutes(service: OrdersService, secret: string) {
 
   routes.use("*", requireAuth(secret), requireRole("buyer"));
 
+  routes.get("/", async (c) => c.json(await service.list(c.get("auth").userId)));
+
+  routes.get("/:id", async (c) => {
+    const { id } = parseParams(c, orderIdParamSchema);
+    return c.json(await service.get(c.get("auth").userId, id));
+  });
+
   routes.post("/", async (c) => {
     const input = await parseJsonBody(c, createOrderSchema);
     const headers = idempotencyHeaderSchema.parse({ "Idempotency-Key": c.req.header("Idempotency-Key") });

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Executor } from "../../shared/db/client.js";
 import { events, idempotencyKeys, orders, ticketTypes } from "../../shared/db/schema.js";
 
@@ -92,19 +92,28 @@ export async function insertIdempotencyKey(tx: Executor, values: typeof idempote
   await tx.insert(idempotencyKeys).values(values);
 }
 
+const ordersWithContext = (db: Executor) =>
+  db
+    .select({ order: orders, eventTitle: events.title, eventStartsAt: events.startsAt, ticketKind: ticketTypes.kind })
+    .from(orders)
+    .innerJoin(events, eq(events.id, orders.eventId))
+    .innerJoin(ticketTypes, eq(ticketTypes.id, orders.ticketTypeId));
+
 export async function findOrderForBuyer(
   db: Executor,
   orderId: string,
   buyerId: string,
 ): Promise<OrderWithContext | undefined> {
-  const [row] = await db
-    .select({ order: orders, eventTitle: events.title, eventStartsAt: events.startsAt, ticketKind: ticketTypes.kind })
-    .from(orders)
-    .innerJoin(events, eq(events.id, orders.eventId))
-    .innerJoin(ticketTypes, eq(ticketTypes.id, orders.ticketTypeId))
+  const [row] = await ordersWithContext(db)
     .where(and(eq(orders.id, orderId), eq(orders.buyerId, buyerId)))
     .limit(1);
   return row;
+}
+
+export async function listOrdersForBuyer(db: Executor, buyerId: string): Promise<OrderWithContext[]> {
+  return ordersWithContext(db)
+    .where(eq(orders.buyerId, buyerId))
+    .orderBy(desc(orders.createdAt), desc(orders.id));
 }
 
 // The status guard makes this the single winner among cancel, pay, and expire:
