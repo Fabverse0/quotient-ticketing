@@ -6,7 +6,11 @@ import { createDatabase } from "./shared/db/client.js";
 
 const config = loadConfig();
 const { db, close } = createDatabase(config);
-const app = createApp({ db, clock: systemClock });
+const app = createApp({
+  db,
+  clock: systemClock,
+  auth: { secret: config.jwtSecret, expiresInSeconds: config.jwtExpiresInSeconds },
+});
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`Quotient API listening on port ${info.port} (${config.nodeEnv})`);

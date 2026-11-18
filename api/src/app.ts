@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { authRoutes } from "./modules/auth/handler.js";
+import { createAuthService, type AuthSettings } from "./modules/auth/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { Database } from "./shared/db/client.js";
 import { AppError, registerErrorHandling } from "./shared/errors.js";
@@ -7,6 +9,7 @@ import { AppError, registerErrorHandling } from "./shared/errors.js";
 export interface AppDeps {
   db: Database;
   clock: Clock;
+  auth: AuthSettings;
 }
 
 const HEALTH_DB_TIMEOUT_MS = 2000;
@@ -23,8 +26,10 @@ async function pingDatabase(db: Database): Promise<void> {
   }
 }
 
-export function createApp({ db, clock }: AppDeps) {
+export function createApp({ db, clock, auth }: AppDeps) {
   const app = new Hono();
+
+  app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth })));
 
   app.get("/health", async (c) => {
     try {
