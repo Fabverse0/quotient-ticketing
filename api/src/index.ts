@@ -16,7 +16,11 @@ const app = createApp({
   db,
   clock: systemClock,
   auth: { secret: config.jwtSecret, expiresInSeconds: config.jwtExpiresInSeconds },
+  quotaStrategy: config.quotaStrategy,
 });
+if (config.quotaStrategy === "naive") {
+  console.warn("QUOTA_STRATEGY=naive: quota reservation is deliberately unsafe and can oversell");
+}
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`Quotient API listening on port ${info.port} (${config.nodeEnv})`);

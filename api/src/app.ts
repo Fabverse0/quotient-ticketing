@@ -6,7 +6,9 @@ import { eventRoutes, organizerEventRoutes } from "./modules/events/handler.js";
 import { createEventsService } from "./modules/events/service.js";
 import { orderRoutes } from "./modules/orders/handler.js";
 import { createOrdersService } from "./modules/orders/service.js";
+import { quotaStrategies } from "./modules/orders/strategy.js";
 import type { Clock } from "./shared/clock.js";
+import type { QuotaStrategyName } from "./shared/config.js";
 import type { Database } from "./shared/db/client.js";
 import { AppError, registerErrorHandling } from "./shared/errors.js";
 
@@ -14,6 +16,7 @@ export interface AppDeps {
   db: Database;
   clock: Clock;
   auth: AuthSettings;
+  quotaStrategy?: QuotaStrategyName;
 }
 
 const HEALTH_DB_TIMEOUT_MS = 2000;
@@ -30,14 +33,15 @@ async function pingDatabase(db: Database): Promise<void> {
   }
 }
 
-export function createApp({ db, clock, auth }: AppDeps) {
+export function createApp({ db, clock, auth, quotaStrategy = "atomic" }: AppDeps) {
   const app = new Hono();
 
   app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
   const eventsService = createEventsService({ db });
   app.route("/events", eventRoutes(eventsService, auth.secret));
   app.route("/organizer/events", organizerEventRoutes(eventsService, auth.secret));
-  app.route("/orders", orderRoutes(createOrdersService({ db, clock }), auth.secret));
+  const ordersService = createOrdersService({ db, clock, strategy: quotaStrategies[quotaStrategy] });
+  app.route("/orders", orderRoutes(ordersService, auth.secret));
 
   app.get("/health", async (c) => {
     try {
