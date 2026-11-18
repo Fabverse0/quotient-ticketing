@@ -228,6 +228,21 @@ describe("withCapacityGuard", () => {
     logged.mockRestore();
   });
 
+  it("recognizes the violation when it surfaces through a rolled-back transaction", async () => {
+    const event = await createTestEvent(app, organizer.token, { regular: { price: 10_000, quota: 1 } });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const attempt = withCapacityGuard(() =>
+      testDb.db.transaction((tx) =>
+        tx.execute(sql`UPDATE ticket_types SET reserved = quota + 1 WHERE id = ${event.regular.id}`),
+      ),
+    );
+
+    await expect(attempt).rejects.toMatchObject({ status: 409, code: "QUOTA_EXHAUSTED" });
+    expect(logged).toHaveBeenCalledWith("capacity guard triggered", expect.anything());
+    logged.mockRestore();
+  });
+
   it("rethrows other constraint violations unchanged", async () => {
     const event = await createTestEvent(app, organizer.token);
 
