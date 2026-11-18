@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
+export const QUOTA_STRATEGIES = ["atomic", "naive"] as const;
+export type QuotaStrategyName = (typeof QUOTA_STRATEGIES)[number];
+
 const DURATION_UNITS = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
 const envSchema = z
@@ -15,6 +18,7 @@ const envSchema = z
       .string()
       .regex(/^\d+[smhd]$/, "must look like 30m, 1h or 7d")
       .default("1h"),
+    QUOTA_STRATEGY: z.enum(QUOTA_STRATEGIES).default("atomic"),
     ORGANIZER_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
     ORGANIZER_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(8).max(72).optional()),
   })
@@ -30,6 +34,7 @@ export interface Config {
   dbPoolMax: number;
   jwtSecret: string;
   jwtExpiresInSeconds: number;
+  quotaStrategy: QuotaStrategyName;
   organizer?: { email: string; password: string };
 }
 
@@ -51,6 +56,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dbPoolMax: e.DB_POOL_MAX,
     jwtSecret: e.JWT_SECRET,
     jwtExpiresInSeconds: durationToSeconds(e.JWT_EXPIRES_IN),
+    quotaStrategy: e.QUOTA_STRATEGY,
     ...(e.ORGANIZER_EMAIL && e.ORGANIZER_PASSWORD
       ? { organizer: { email: e.ORGANIZER_EMAIL, password: e.ORGANIZER_PASSWORD } }
       : {}),
