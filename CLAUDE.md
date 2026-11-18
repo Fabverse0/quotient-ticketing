@@ -74,7 +74,7 @@ Tidak memakai Redis. Tidak memakai microservice. Supabase hanya opsional untuk d
 - Deploy online opsional, dikerjakan paling akhir.
 - Akun organizer dibuat lewat seed, bukan lewat halaman daftar.
 
-## Fakta teknis yang sudah ada di kode (PR #1 sampai #4)
+## Fakta teknis yang sudah ada di kode
 
 Fondasi:
 - `createApp({ db, clock, auth })` menerima semua dependensi dari luar. `index.ts` memberi `systemClock` dan config asli; test memberi DB Testcontainers, `createFakeClock`, dan `testAuthSettings`, lalu memanggil `app.request()` tanpa server. Modul baru ikut pola ini: `createXService({ db, clock? })` dirakit di `createApp`.
@@ -99,6 +99,30 @@ Events:
 - Endpoint publik hanya menampilkan `remaining = quota - sold - reserved`. `quota`, `sold`, `reserved`, dan `organizerId` hanya muncul di `GET /organizer/events/:id`.
 - Organizer bukan pemilik mendapat 403, bukan 404, karena keberadaan event sudah publik lewat `GET /events/:id`. Event yang tidak ada 404 `EVENT_NOT_FOUND`. Id bukan uuid 400 `VALIDATION_ERROR`.
 - `GET /events` memuat semua event (termasuk yang sudah lewat), urut `startsAt` naik, tanpa paginasi. Event tidak harus di masa depan saat dibuat.
+
+Orders:
+- Body `POST /orders` memakai camelCase (`ticketTypeId`, `quantity`), konsisten dengan modul events.
+- Urutan di transaksi buat pesanan: lock dan cek Idempotency-Key, baca tipe tiket dan event, cek event belum dimulai, advisory lock (buyer, event), hitung tiket aktif, potong kuota, insert order, insert key. Baris `ticket_types` disentuh paling akhir karena lock barisnya dipegang sampai commit.
+- Transaksi memakai READ COMMITTED (default). Jangan dinaikkan ke REPEATABLE READ: snapshot akan diambil sebelum advisory lock, sehingga hitungan tiket aktif tidak melihat pesanan pemegang lock sebelumnya dan batas 4 tiket jebol.
+- Advisory lock: `hashtextextended(buyer_id::text || ':' || event_id::text, 0)` untuk batas 4 tiket, `hashtextextended('idem:' || buyer_id || ':' || key, 0)` untuk Idempotency-Key.
+- PENDING yang sudah lewat `expires_at` tapi belum disapu sweeper tetap dihitung ke batas 4.
+- Event dengan `starts_at <= clock.now()` ditolak 409 `EVENT_ALREADY_STARTED`.
+- `created_at` dan `expires_at` diisi dari `clock`, bukan `now()` database, supaya selisihnya tepat 15 menit dan test dengan fake clock konsisten.
+- Strategi kuota dipilih lewat `QUOTA_STRATEGY` dan masuk ke `createApp({ quotaStrategy })` sebagai dependensi opsional (default `atomic`). Naive membaca counter lalu menulis nilai absolut, sengaja rentan lost update. Oversell-nya tidak tertangkap CHECK karena counter tetap terlihat valid, hanya terlihat dari `reserved` dibanding `SUM(quantity)` pesanan PENDING.
+- Pengembalian kuota (cancel, nanti expire) selalu relatif (`reserved = reserved - q`) di strategi apa pun.
+- Idempotency-Key opsional (1 sampai 255 karakter), unik per buyer. `request_hash` adalah sha256 dari body yang sudah di-parse dengan urutan field tetap. Body sama: pesanan lama dengan 200. Body beda: 422 `IDEMPOTENCY_KEY_REUSED`. Key disimpan di transaksi yang sama dengan pesanan, jadi request yang gagal tidak menyimpan key dan retry diproses ulang. Replay tetap jalan walaupun event sudah dimulai.
+- Cancel memakai `UPDATE ... WHERE id AND buyer_id AND status = 'PENDING' AND expires_at > now RETURNING`, lalu mengurangi `reserved` hanya kalau dapat baris. Kalau tidak dapat baris: tidak ada atau milik orang lain 404 `ORDER_NOT_FOUND`, masih PENDING (berarti lewat `expires_at`) 409 `ORDER_EXPIRED` dan dibiarkan untuk sweeper, status lain 409 `ORDER_NOT_PENDING`.
+- Pesanan orang lain di `GET /orders/:id` dan cancel mendapat 404, bukan 403, karena keberadaan pesanan bersifat privat. `GET /orders` urut `created_at` turun, tanpa paginasi.
+- Semua route `/orders` hanya untuk buyer; organizer 403.
+- Kode error baru: `TICKET_TYPE_NOT_FOUND`, `ORDER_NOT_FOUND`, `EVENT_ALREADY_STARTED`, `BUYER_LIMIT_EXCEEDED`, `QUOTA_EXHAUSTED`, `ORDER_NOT_PENDING`, `ORDER_EXPIRED`, `IDEMPOTENCY_KEY_REUSED` (422).
+
+Urutan lock (wajib untuk payments dan sweeper):
+- Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
+- Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).
+
+Test:
+- Token ditandatangani dengan fake clock tapi diverifikasi Hono dengan waktu asli, dan token dengan `iat` di masa depan ditolak. Fake clock dimulai dari waktu asli dan di-reset di `beforeEach`; token dibuat sebelum clock dimajukan.
+- `tests/quota-strategy.test.ts` membuktikan lost update secara deterministik: transaksi penahan mengunci baris, dua reservasi berjalan sampai tertahan di UPDATE (sudah membaca), lalu penahan dilepas. Kuota 1: atomic meloloskan satu, naive meloloskan dua dengan `reserved = 1`.
 
 Lingkungan lokal dan CI:
 - Postgres compose dibuka di port host 5433, karena 5432 sering dipakai Postgres lokal. Di dalam jaringan compose API tetap memakai `postgres:5432`.
