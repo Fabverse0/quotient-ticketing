@@ -4,6 +4,8 @@ import { authRoutes } from "./modules/auth/handler.js";
 import { createAuthService, type AuthSettings } from "./modules/auth/service.js";
 import { eventRoutes, organizerEventRoutes } from "./modules/events/handler.js";
 import { createEventsService } from "./modules/events/service.js";
+import { orderRoutes } from "./modules/orders/handler.js";
+import { createOrdersService } from "./modules/orders/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { Database } from "./shared/db/client.js";
 import { AppError, registerErrorHandling } from "./shared/errors.js";
@@ -35,6 +37,7 @@ export function createApp({ db, clock, auth }: AppDeps) {
   const eventsService = createEventsService({ db });
   app.route("/events", eventRoutes(eventsService, auth.secret));
   app.route("/organizer/events", organizerEventRoutes(eventsService, auth.secret));
+  app.route("/orders", orderRoutes(createOrdersService({ db, clock }), auth.secret));
 
   app.get("/health", async (c) => {
     try {
