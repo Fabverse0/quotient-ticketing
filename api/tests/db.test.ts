@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runMigrations } from "../src/shared/db/migrate.js";
 import { startTestDatabase } from "./helpers/postgres.js";
 
 let testDb: Awaited<ReturnType<typeof startTestDatabase>>;
@@ -16,6 +17,10 @@ describe("database against real Postgres", () => {
   it("answers a query through the pool", async () => {
     const result = await testDb.db.execute(sql`select 1 as ok`);
     expect(result.rows[0]).toEqual({ ok: 1 });
+  });
+
+  it("can run migrations again without error", async () => {
+    await expect(runMigrations(testDb.db)).resolves.toBeUndefined();
   });
 
   it("has all migrated tables", async () => {
