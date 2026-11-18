@@ -3,8 +3,7 @@ import type { QuotaStrategyName } from "../../shared/config.js";
 import type { Executor } from "../../shared/db/client.js";
 
 export interface QuotaStrategy {
-  // Adds `quantity` to the ticket type's reserved count. Returns false when
-  // the remaining quota is too small.
+  // Returns false when the remaining quota is too small.
   reserve(tx: Executor, ticketTypeId: string, quantity: number): Promise<boolean>;
 }
 
@@ -22,13 +21,8 @@ export const atomicStrategy: QuotaStrategy = {
   },
 };
 
-// DELIBERATELY UNSAFE. Exists only to demonstrate oversell next to the atomic
-// strategy (QUOTA_STRATEGY=naive). Reading the counters into the application
-// and writing back an absolute value leaves a gap: two transactions can both
-// read reserved = N, both pass the check, and both write N + q. One update is
-// lost, so more orders exist than reserved seats, and because the stored
-// counter still looks valid the CHECK constraint never notices.
-// Never use this outside the demo.
+// DELIBERATELY UNSAFE, oversell demo only: two transactions can both read N and
+// both write N + q, losing one update in a way the CHECK constraint cannot see.
 export const naiveStrategy: QuotaStrategy = {
   async reserve(tx, ticketTypeId, quantity) {
     const { rows } = await tx.execute<{ quota: number; sold: number; reserved: number }>(sql`
