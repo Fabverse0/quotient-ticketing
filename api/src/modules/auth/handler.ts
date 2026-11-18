@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { parseJsonBody } from "../../shared/validation.js";
+import { requireAuth, type AuthEnv } from "./middleware.js";
 import type { AuthService } from "./service.js";
 
 // bcrypt only reads the first 72 bytes, so longer passwords would be silently truncated.
@@ -19,8 +20,8 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export function authRoutes(service: AuthService) {
-  const routes = new Hono();
+export function authRoutes(service: AuthService, secret: string) {
+  const routes = new Hono<AuthEnv>();
 
   routes.post("/register", async (c) => {
     const input = await parseJsonBody(c, registerSchema);
@@ -30,6 +31,10 @@ export function authRoutes(service: AuthService) {
   routes.post("/login", async (c) => {
     const input = await parseJsonBody(c, loginSchema);
     return c.json(await service.login(input), 200);
+  });
+
+  routes.get("/me", requireAuth(secret), async (c) => {
+    return c.json(await service.getProfile(c.get("auth").userId));
   });
 
   return routes;

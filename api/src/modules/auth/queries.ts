@@ -9,6 +9,11 @@ export async function findUserByEmail(db: Database, email: string): Promise<User
   return row;
 }
 
+export async function findUserById(db: Database, id: string): Promise<UserRow | undefined> {
+  const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return row;
+}
+
 // ON CONFLICT keeps duplicate detection atomic: two concurrent registrations
 // for the same email cannot both succeed, and neither surfaces a raw pg error.
 export async function insertUserIfNew(

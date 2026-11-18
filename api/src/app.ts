@@ -29,7 +29,7 @@ async function pingDatabase(db: Database): Promise<void> {
 export function createApp({ db, clock, auth }: AppDeps) {
   const app = new Hono();
 
-  app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth })));
+  app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
 
   app.get("/health", async (c) => {
     try {

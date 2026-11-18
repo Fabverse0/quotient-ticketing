@@ -2,7 +2,7 @@ import type { Clock } from "../../shared/clock.js";
 import type { Database } from "../../shared/db/client.js";
 import { AppError } from "../../shared/errors.js";
 import { hashPassword, verifyPassword } from "./password.js";
-import { findUserByEmail, insertUserIfNew, type UserRow } from "./queries.js";
+import { findUserByEmail, findUserById, insertUserIfNew, type UserRow } from "./queries.js";
 import { issueToken } from "./token.js";
 
 export interface AuthSettings {
@@ -10,9 +10,11 @@ export interface AuthSettings {
   expiresInSeconds: number;
 }
 
+export type UserProfile = Pick<UserRow, "id" | "email" | "name" | "role">;
+
 export interface AuthResult {
   token: string;
-  user: Pick<UserRow, "id" | "email" | "name" | "role">;
+  user: UserProfile;
 }
 
 export function createAuthService({ db, clock, settings }: { db: Database; clock: Clock; settings: AuthSettings }) {
@@ -50,6 +52,14 @@ export function createAuthService({ db, clock, settings }: { db: Database; clock
         throw new AppError(401, "INVALID_CREDENTIALS", "Email atau password salah");
       }
       return toResult(user);
+    },
+
+    async getProfile(userId: string): Promise<UserProfile> {
+      const user = await findUserById(db, userId);
+      if (!user) {
+        throw new AppError(401, "INVALID_TOKEN", "Akun untuk token ini tidak ditemukan");
+      }
+      return { id: user.id, email: user.email, name: user.name, role: user.role };
     },
   };
 }
