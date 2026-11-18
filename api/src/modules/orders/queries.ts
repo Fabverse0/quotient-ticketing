@@ -116,10 +116,8 @@ export async function listOrdersForBuyer(db: Executor, buyerId: string): Promise
     .orderBy(desc(orders.createdAt), desc(orders.id));
 }
 
-// The status guard makes this the single winner among cancel, pay, and expire:
-// whichever UPDATE matches the PENDING row first gets it, the rest get 0 rows.
-// The expires_at guard keeps an order the sweeper has not reached yet from
-// being cancelled after its hold ended.
+// Only one of cancel, pay, and expire can win the PENDING row; the rest get 0 rows.
+// An order past expires_at is left for the sweeper.
 export async function cancelPendingOrder(
   tx: Executor,
   orderId: string,

@@ -9,9 +9,8 @@ function violatedConstraint(err: unknown): string | undefined {
   return typeof cause?.constraint === "string" ? cause.constraint : undefined;
 }
 
-// The atomic update is what normally reports an exhausted quota. If the CHECK
-// constraint fires instead, the application let an oversell reach the
-// database: the client still sees QUOTA_EXHAUSTED, but it is logged as a bug.
+// Exhaustion is normally reported by the atomic update. The CHECK firing means
+// an oversell reached the database: same 409 for the client, logged as a bug.
 export async function withCapacityGuard<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();

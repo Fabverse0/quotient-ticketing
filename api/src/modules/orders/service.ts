@@ -36,9 +36,8 @@ export function createOrdersService({
   clock: Clock;
   strategy?: QuotaStrategy;
 }) {
-  // Step order matters: cheap rejections first, then the per-buyer lock
-  // before counting, and the contended ticket_types row as late as possible
-  // because its row lock is held until commit.
+  // Cheap rejections first, the buyer lock before counting, and the contended
+  // ticket_types row last, since its row lock is held until commit.
   async function placeOrder(tx: Transaction, buyerId: string, input: CreateOrderInput, now: Date): Promise<OrderView> {
     const ticketType = await findTicketTypeForOrder(tx, input.ticketTypeId);
     if (!ticketType) {
@@ -80,10 +79,8 @@ export function createOrdersService({
   }
 
   return {
-    // With an Idempotency-Key the key is checked before anything else, so a
-    // replay returns the original order even if the event has since started.
-    // The key row is written in the same transaction as the order: a failed
-    // request rolls both back and a retry is processed from scratch.
+    // The key is checked first so a replay returns the original order even after
+    // the event starts. A failed request rolls the key back with the order.
     async create(
       buyerId: string,
       input: CreateOrderInput,

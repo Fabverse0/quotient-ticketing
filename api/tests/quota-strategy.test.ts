@@ -41,9 +41,8 @@ async function waitForLockWaiters(count: number) {
   throw new Error(`expected ${count} backends waiting on a lock`);
 }
 
-// Forces the worst interleaving: a holder transaction locks the row, both
-// reservations run until they block on their UPDATE (so both have already
-// read the row), then the holder commits and they proceed one after another.
+// Forces the worst interleaving: both reservations read the row, then block on
+// their UPDATE behind a holder transaction that commits afterwards.
 async function raceTwoReservations(strategy: QuotaStrategy, ticketTypeId: string) {
   let signalLocked!: () => void;
   let release!: () => void;
