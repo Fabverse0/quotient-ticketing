@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import { verifyToken } from "../src/modules/auth/token.js";
+import { issueToken, verifyToken } from "../src/modules/auth/token.js";
 import { systemClock } from "../src/shared/clock.js";
 import { users } from "../src/shared/db/schema.js";
 import { startTestDatabase } from "./helpers/postgres.js";
@@ -124,5 +124,46 @@ describe("POST /auth/login", () => {
     const res = await post("/auth/login", { email: "login@example.com" });
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+  });
+});
+
+describe("GET /auth/me", () => {
+  const me = (token?: string) =>
+    app.request("/auth/me", token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+
+  it("returns the profile of the token owner without the password hash", async () => {
+    const registered = await (await post("/auth/register", validRegistration("me@example.com"))).json();
+
+    const res = await me(registered.token);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      id: registered.user.id,
+      email: "me@example.com",
+      name: "Budi",
+      role: "buyer",
+    });
+  });
+
+  it("rejects a request without a token", async () => {
+    const res = await me();
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("rejects a garbage token", async () => {
+    const res = await me("not-a-real-token");
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("INVALID_TOKEN");
+  });
+
+  it("rejects a valid token whose account no longer exists", async () => {
+    const ghost = await issueToken(
+      { userId: "00000000-0000-4000-8000-000000000000", role: "buyer" },
+      { secret, expiresInSeconds: 3600, now: new Date() },
+    );
+    const res = await me(ghost);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("INVALID_TOKEN");
   });
 });
