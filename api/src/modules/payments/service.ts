@@ -17,7 +17,7 @@ import {
   setWebhookOutcome,
   type WebhookOutcome,
 } from "./queries.js";
-import type { PaymentWebhook } from "./schemas.js";
+import type { ParsedWebhook, PaymentWebhook } from "./schemas.js";
 
 export type PaymentResult =
   | { kind: "PAID"; tickets: TicketRow[] }
@@ -116,24 +116,26 @@ export function createPaymentsService({ db, clock }: { db: Database; clock: Cloc
 
     // Every recorded event gets 2xx so the provider stops retrying. A failed
     // transaction records nothing, so the retry is processed again.
-    async handleWebhook(event: PaymentWebhook, payload: unknown): Promise<WebhookReceipt> {
+    async handleWebhook(parsed: ParsedWebhook, payload: unknown): Promise<WebhookReceipt> {
+      const payment = "payment" in parsed ? parsed.payment : undefined;
+      const envelope = "payment" in parsed ? parsed.payment : parsed.ignored;
       return db.transaction(async (tx) => {
         const now = clock.now();
         const isNew = await recordWebhookEvent(tx, {
-          eventId: event.event_id,
-          eventType: event.event_type,
+          eventId: envelope.event_id,
+          eventType: envelope.event_type,
           payload,
-          orderId: event.order_id,
+          orderId: payment?.order_id ?? null,
           receivedAt: now,
         });
         if (!isNew) {
-          return { received: true, duplicate: true, outcome: await findWebhookOutcome(tx, event.event_id) };
+          return { received: true, duplicate: true, outcome: await findWebhookOutcome(tx, envelope.event_id) };
         }
 
-        const outcome = await processWebhook(tx, event, now);
-        await setWebhookOutcome(tx, event.event_id, outcome);
+        const outcome = payment ? await processWebhook(tx, payment, now) : "IGNORED";
+        await setWebhookOutcome(tx, envelope.event_id, outcome);
         if (outcome === "AMOUNT_MISMATCH") {
-          console.error("payment webhook amount mismatch", { eventId: event.event_id, orderId: event.order_id });
+          console.error("payment webhook amount mismatch", { eventId: envelope.event_id, orderId: payment?.order_id });
         }
         return { received: true, duplicate: false, outcome };
       });

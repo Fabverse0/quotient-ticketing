@@ -141,11 +141,43 @@ describe("POST /webhooks/payment signature", () => {
     expect(invalidJsonRes.status).toBe(400);
     expect((await invalidJsonRes.json()).error.code).toBe("INVALID_JSON");
 
-    const payload = { event_id: "evt_bad", event_type: "payment.refunded", order_id: "x", amount: -1 };
-    const invalidRes = await send(payload);
-    expect(invalidRes.status).toBe(400);
-    expect((await invalidRes.json()).error.code).toBe("VALIDATION_ERROR");
+    const invalid = [
+      { event_type: "payment.succeeded", order_id: randomUUID(), amount: 1 },
+      { event_id: "evt_bad", event_type: 42 },
+      { event_id: "evt_bad", event_type: "payment.succeeded", order_id: "x", amount: -1 },
+    ];
+    for (const payload of invalid) {
+      const res = await send(payload);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+    }
     expect(await recorded("evt_bad")).toHaveLength(0);
+  });
+});
+
+describe("POST /webhooks/payment unknown event types", () => {
+  it("records an unknown event type as IGNORED and leaves the order alone", async () => {
+    const order = await placeOrder(2);
+    const payload = succeeded(order, { event_type: "payment.refunded" });
+
+    const res = await send(payload);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true, duplicate: false, outcome: "IGNORED" });
+    expect((await orderRow(order.id)).status).toBe("PENDING");
+    expect(await counters()).toEqual({ reserved: 2, sold: 0 });
+    const [row] = await recorded(payload.event_id);
+    expect(row).toMatchObject({ eventType: "payment.refunded", orderId: null, outcome: "IGNORED", payload });
+  });
+
+  it("needs only event_id and event_type for an unknown type", async () => {
+    const payload = { event_id: `evt_${randomUUID()}`, event_type: "customer.created" };
+
+    const res = await send(payload);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true, duplicate: false, outcome: "IGNORED" });
+    expect((await recorded(payload.event_id))[0]).toMatchObject({ outcome: "IGNORED", payload });
   });
 });
 

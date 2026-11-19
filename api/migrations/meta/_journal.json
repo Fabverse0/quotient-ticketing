@@ -15,6 +15,13 @@
       "when": 1795053558069,
       "tag": "0001_processed_events_outcome",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795066876101,
+      "tag": "0002_webhook_outcome_ignored",
+      "breakpoints": true
     }
   ]
 }
