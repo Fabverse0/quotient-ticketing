@@ -37,6 +37,8 @@ export interface Config {
   jwtExpiresInSeconds: number;
   quotaStrategy: QuotaStrategyName;
   paymentWebhookSecret: string;
+  // POST /orders/:id/pay is a stand-in for a real provider; never in production.
+  simulatedPaymentEnabled: boolean;
   organizer?: { email: string; password: string };
 }
 
@@ -60,6 +62,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jwtExpiresInSeconds: durationToSeconds(e.JWT_EXPIRES_IN),
     quotaStrategy: e.QUOTA_STRATEGY,
     paymentWebhookSecret: e.PAYMENT_WEBHOOK_SECRET,
+    simulatedPaymentEnabled: e.NODE_ENV !== "production",
     ...(e.ORGANIZER_EMAIL && e.ORGANIZER_PASSWORD
       ? { organizer: { email: e.ORGANIZER_EMAIL, password: e.ORGANIZER_PASSWORD } }
       : {}),

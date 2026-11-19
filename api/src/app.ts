@@ -7,6 +7,7 @@ import { createEventsService } from "./modules/events/service.js";
 import { orderRoutes } from "./modules/orders/handler.js";
 import { createOrdersService } from "./modules/orders/service.js";
 import { quotaStrategies } from "./modules/orders/strategy.js";
+import { createPaymentsService } from "./modules/payments/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { QuotaStrategyName } from "./shared/config.js";
 import type { Database } from "./shared/db/client.js";
@@ -17,6 +18,8 @@ export interface AppDeps {
   clock: Clock;
   auth: AuthSettings;
   quotaStrategy?: QuotaStrategyName;
+  // Off unless asked for, so a missing flag can never expose it in production.
+  simulatedPaymentEnabled?: boolean;
 }
 
 const HEALTH_DB_TIMEOUT_MS = 2000;
@@ -33,7 +36,7 @@ async function pingDatabase(db: Database): Promise<void> {
   }
 }
 
-export function createApp({ db, clock, auth, quotaStrategy = "atomic" }: AppDeps) {
+export function createApp({ db, clock, auth, quotaStrategy = "atomic", simulatedPaymentEnabled = false }: AppDeps) {
   const app = new Hono();
 
   app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
@@ -41,7 +44,11 @@ export function createApp({ db, clock, auth, quotaStrategy = "atomic" }: AppDeps
   app.route("/events", eventRoutes(eventsService, auth.secret));
   app.route("/organizer/events", organizerEventRoutes(eventsService, auth.secret));
   const ordersService = createOrdersService({ db, clock, strategy: quotaStrategies[quotaStrategy] });
-  app.route("/orders", orderRoutes(ordersService, auth.secret));
+  const paymentsService = createPaymentsService({ db, clock });
+  app.route(
+    "/orders",
+    orderRoutes(ordersService, auth.secret, simulatedPaymentEnabled ? paymentsService : undefined),
+  );
 
   app.get("/health", async (c) => {
     try {

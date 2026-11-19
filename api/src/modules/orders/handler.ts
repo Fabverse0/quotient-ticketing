@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { parseJsonBody, parseParams } from "../../shared/validation.js";
 import { requireAuth, requireRole, type AuthEnv } from "../auth/middleware.js";
 import { createOrderSchema, idempotencyHeaderSchema, orderIdParamSchema } from "./schemas.js";
+import type { PaymentsService } from "../payments/service.js";
 import type { OrdersService } from "./service.js";
 
-export function orderRoutes(service: OrdersService, secret: string) {
+// The pay route is only registered when a payments service is passed in.
+export function orderRoutes(service: OrdersService, secret: string, simulatedPayments?: PaymentsService) {
   const routes = new Hono<AuthEnv>();
 
   routes.use("*", requireAuth(secret), requireRole("buyer"));
@@ -27,6 +29,13 @@ export function orderRoutes(service: OrdersService, secret: string) {
     const { id } = parseParams(c, orderIdParamSchema);
     return c.json(await service.cancel(c.get("auth").userId, id));
   });
+
+  if (simulatedPayments) {
+    routes.post("/:id/pay", async (c) => {
+      const { id } = parseParams(c, orderIdParamSchema);
+      return c.json(await simulatedPayments.payAsBuyer(c.get("auth").userId, id));
+    });
+  }
 
   return routes;
 }
