@@ -62,7 +62,8 @@ function heading(text) {
 async function phase(strategy) {
   heading(`${strategy}: reset database`);
   compose(strategy, "down", "-v", "--remove-orphans");
-  compose(strategy, "up", "-d", "--build", "--wait");
+  // Only the API (and Postgres): the web service would take port 8080 from the dev stack.
+  compose(strategy, "up", "-d", "--build", "--wait", "api");
 
   heading(`${strategy}: seed ${BUYERS} buyers, quota ${QUOTA}`);
   must(
