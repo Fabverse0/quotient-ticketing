@@ -20,6 +20,7 @@ describe("loadConfig", () => {
       quotaStrategy: "atomic",
       paymentWebhookSecret: validEnv.PAYMENT_WEBHOOK_SECRET,
       simulatedPaymentEnabled: true,
+      sweeper: { enabled: true, intervalMs: 30_000 },
     });
     expect(config.organizer).toBeUndefined();
   });
@@ -98,6 +99,18 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...validEnv, ORGANIZER_EMAIL: "admin@quotient.test" })).toThrow(
       /ORGANIZER_PASSWORD/,
     );
+  });
+
+  it("reads the sweeper switch and interval", () => {
+    const config = loadConfig({ ...validEnv, SWEEPER_ENABLED: "false", SWEEPER_INTERVAL_MS: "5000" });
+    expect(config.sweeper).toEqual({ enabled: false, intervalMs: 5000 });
+    expect(loadConfig({ ...validEnv, SWEEPER_ENABLED: "true" }).sweeper.enabled).toBe(true);
+  });
+
+  it("rejects an invalid sweeper switch or an interval under one second", () => {
+    expect(() => loadConfig({ ...validEnv, SWEEPER_ENABLED: "maybe" })).toThrow(/SWEEPER_ENABLED/);
+    expect(() => loadConfig({ ...validEnv, SWEEPER_INTERVAL_MS: "999" })).toThrow(/SWEEPER_INTERVAL_MS/);
+    expect(() => loadConfig({ ...validEnv, SWEEPER_INTERVAL_MS: "1.5" })).toThrow(/SWEEPER_INTERVAL_MS/);
   });
 
   it("accepts the naive quota strategy", () => {
