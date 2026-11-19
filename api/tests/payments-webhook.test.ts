@@ -2,13 +2,13 @@ import { createHmac, randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
+import { sweepExpiredOrders } from "../src/jobs/sweeper.js";
 import { orders, processedEvents, tickets, ticketTypes } from "../src/shared/db/schema.js";
 import { buyerToken, call, organizerToken, testAuthSettings } from "./helpers/auth.js";
 import { createTestEvent, type TestEvent } from "./helpers/events.js";
 import { createFakeClock } from "./helpers/fake-clock.js";
-import { fulfilledValues, raceBehindLock } from "./helpers/locks.js";
+import { fulfilledValues, raceBehindLock, stageBehindLock } from "./helpers/locks.js";
 import { startTestDatabase } from "./helpers/postgres.js";
-import { expireOrder } from "./helpers/sweeper.js";
 
 const HOLD_MS = 15 * 60 * 1000;
 const WEBHOOK_SECRET = "a-webhook-secret-that-is-32-chars-long";
@@ -300,7 +300,8 @@ describe("POST /webhooks/payment after the hold", () => {
   it("flags an EXPIRED order REFUND_REQUIRED without touching the quota or issuing tickets", async () => {
     const order = await placeOrder(2);
     clock.advance(HOLD_MS);
-    expect(await expireOrder(testDb.db, order.id, clock.now())).toBe(true);
+    await sweepExpiredOrders(testDb.db, clock.now());
+    expect((await orderRow(order.id)).status).toBe("EXPIRED");
     const before = await counters();
 
     const res = await send(succeeded(order));
@@ -334,27 +335,51 @@ describe("POST /webhooks/payment after the hold", () => {
     expect((await orderRow(order.id)).status).toBe("REFUND_REQUIRED");
     // Out of PENDING, the sweeper will never return this hold, so the webhook does.
     expect(await counters()).toEqual({ reserved: 0, sold: 0 });
-    expect(await expireOrder(testDb.db, order.id, clock.now())).toBe(false);
+    await sweepExpiredOrders(testDb.db, clock.now());
+    expect((await orderRow(order.id)).status).toBe("REFUND_REQUIRED");
     expect(await counters()).toEqual({ reserved: 0, sold: 0 });
   });
 
-  it("returns the hold exactly once when a late webhook and the sweeper race", async () => {
+  // The other buyer's hold is not due yet, so a double release shows as a
+  // wrong number instead of a CHECK error.
+  async function lateOrderBesideAnotherHold() {
     const other = await buyerToken(app);
-    await placeOrder(2, other.token);
     const order = await placeOrder(2);
-    clock.advance(HOLD_MS);
+    clock.advance(5 * 60 * 1000);
+    await placeOrder(2, other.token);
+    clock.advance(HOLD_MS - 5 * 60 * 1000);
     expect(await counters()).toEqual({ reserved: 4, sold: 0 });
+    return order;
+  }
+  const lockTicketType = () => sql`SELECT 1 FROM ticket_types WHERE id = ${event.regular.id} FOR UPDATE`;
 
-    const results = await raceBehindLock<unknown>(
+  it("returns the hold once when a late webhook holds the order and the sweeper runs", async () => {
+    const order = await lateOrderBesideAnotherHold();
+
+    const { blocked } = await stageBehindLock(
       testDb.db,
-      sql`SELECT 1 FROM orders WHERE id = ${order.id} FOR UPDATE`,
-      [async () => (await send(succeeded(order))).json(), () => expireOrder(testDb.db, order.id, clock.now())],
+      lockTicketType(),
+      [async () => (await send(succeeded(order))).json()],
+      () => sweepExpiredOrders(testDb.db, clock.now()),
     );
 
-    const [webhook] = fulfilledValues(results);
-    expect(webhook).toMatchObject({ outcome: "REFUND_REQUIRED" });
+    expect(blocked[0]).toMatchObject({ status: "fulfilled", value: { outcome: "REFUND_REQUIRED" } });
     expect((await orderRow(order.id)).status).toBe("REFUND_REQUIRED");
-    // Only the other buyer's hold remains; a double release would leave 0.
+    expect(await counters()).toEqual({ reserved: 2, sold: 0 });
+    expect(await ticketCount(order.id)).toBe(0);
+  });
+
+  it("returns the hold once when the sweeper holds the order and a late webhook waits", async () => {
+    const order = await lateOrderBesideAnotherHold();
+
+    const { blocked } = await stageBehindLock(testDb.db, lockTicketType(), [
+      () => sweepExpiredOrders(testDb.db, clock.now()),
+      async () => (await send(succeeded(order))).json(),
+    ]);
+
+    expect(blocked[0]!.status).toBe("fulfilled");
+    expect(blocked[1]).toMatchObject({ status: "fulfilled", value: { outcome: "REFUND_REQUIRED" } });
+    expect((await orderRow(order.id)).status).toBe("REFUND_REQUIRED");
     expect(await counters()).toEqual({ reserved: 2, sold: 0 });
     expect(await ticketCount(order.id)).toBe(0);
   });
