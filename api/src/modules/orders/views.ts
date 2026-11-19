@@ -1,3 +1,5 @@
+import type { TicketRow } from "../tickets/queries.js";
+import { toTicketView } from "../tickets/views.js";
 import type { OrderWithContext } from "./queries.js";
 
 export function toOrderView({ order, eventTitle, eventStartsAt, ticketKind }: OrderWithContext) {
@@ -18,3 +20,9 @@ export function toOrderView({ order, eventTitle, eventStartsAt, ticketKind }: Or
 }
 
 export type OrderView = ReturnType<typeof toOrderView>;
+
+export function toOrderDetailView(order: OrderWithContext, tickets: TicketRow[]) {
+  return { ...toOrderView(order), tickets: tickets.map(toTicketView) };
+}
+
+export type OrderDetailView = ReturnType<typeof toOrderDetailView>;
