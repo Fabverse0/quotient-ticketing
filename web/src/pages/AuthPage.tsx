@@ -25,7 +25,7 @@ function validate(mode: Mode, v: Values): Errors {
 }
 
 const tab = (active: boolean) =>
-  `border-b pb-2 text-body ${active ? "border-ink text-ink" : "border-transparent text-quiet hover:text-ink"}`;
+  `inline-flex min-h-(--size-button) items-center border-b text-body ${active ? "border-ink text-ink" : "border-transparent text-quiet hover:text-ink"}`;
 
 export function AuthPage({ mode }: { mode: Mode }) {
   const { user, signIn } = useSession();
