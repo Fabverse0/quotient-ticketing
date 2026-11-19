@@ -4,6 +4,8 @@ import { authRoutes } from "./modules/auth/handler.js";
 import { createAuthService, type AuthSettings } from "./modules/auth/service.js";
 import { eventRoutes, organizerEventRoutes } from "./modules/events/handler.js";
 import { createEventsService } from "./modules/events/service.js";
+import { invariantRoutes } from "./modules/invariants/handler.js";
+import { createInvariantsService } from "./modules/invariants/service.js";
 import { orderRoutes } from "./modules/orders/handler.js";
 import { createOrdersService } from "./modules/orders/service.js";
 import { createQuotaStrategy } from "./modules/orders/strategy.js";
@@ -65,6 +67,7 @@ export function createApp({
     orderRoutes(ordersService, auth.secret, simulatedPaymentEnabled ? paymentsService : undefined),
   );
   app.route("/tickets", ticketRoutes(createTicketsService({ db }), auth.secret));
+  app.route("/admin/invariants", invariantRoutes(createInvariantsService({ db }), auth.secret));
   if (paymentWebhookSecret) {
     app.route("/webhooks", webhookRoutes(paymentsService, paymentWebhookSecret));
   }
