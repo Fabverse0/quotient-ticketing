@@ -76,13 +76,13 @@ describe("GET /orders", () => {
 });
 
 describe("GET /orders/:id", () => {
-  it("returns the buyer's own order", async () => {
+  it("returns the buyer's own order with an empty ticket list while unpaid", async () => {
     const order = await placeOrder(buyer.token);
 
     const res = await call(app, "GET", `/orders/${order.id}`, { token: buyer.token });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(order);
+    expect(await res.json()).toEqual({ ...order, tickets: [] });
   });
 
   it("returns 404 for another buyer's order, as if it did not exist", async () => {
