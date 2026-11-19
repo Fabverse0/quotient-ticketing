@@ -26,7 +26,7 @@ Ini terinspirasi, bukan meniru. Tidak memakai nama, logo, atau aset dari merek m
 | `--color-ink` | `#333333` | Teks utama, tombol utama, bingkai |
 | `--color-graphite` | `#4d4d4d` | Paragraf panjang |
 | `--color-slate` | `#666666` | Teks sekunder |
-| `--color-ash` | `#aaaaaa` | Label kecil, tautan navigasi, keterangan |
+| `--color-ash` | `#aaaaaa` | Garis, border, dan tanda non-teks. Tidak untuk teks (kontrasnya 2,1:1) |
 | `--color-mist` | `#dddddd` | Border kolom isian |
 | `--color-carbon` | `#252525` | Pita gelap di atas halaman detail event |
 
@@ -36,11 +36,13 @@ Ini terinspirasi, bukan meniru. Tidak memakai nama, logo, atau aset dari merek m
 |---|---|---|
 | `--color-umber` | `#945c26` | Aksen istimewa: segel LUNAS, kursi ditahan di peta kursi |
 | `--color-sage` | `#5E6B4E` | Tersedia, OK, invariant lulus, indikator live |
-| `--color-ochre` | `#B07D2B` | Menunggu bayar, kursi tinggal sedikit (kurang dari 15) |
+| `--color-ochre` | `#B07D2B` | Garis dan border status menunggu bayar dan kursi tinggal sedikit (kurang dari 15) |
+| `--color-ochre-text` | `#8c6221` | Teks status oker: menunggu bayar, kursi tinggal sedikit |
 | `--color-oxblood` | `#7A2E2A` | Habis, kedaluwarsa, error, invariant LANGGAR, perlu refund |
 | `--color-inkblue` | `#2F4858` | Tiket yang sudah lunas |
 
 Aturan:
+- Teks kecil yang dulu memakai ash memakai slate `#666666` (4,95:1 di latar wall). Teks status oker memakai `#8c6221` (4,66:1 di latar wall). Ash dan oker asli tetap untuk garis dan border. Semua teks memenuhi WCAG AA.
 - Warna status hanya muncul di teks kecil, label, garis, dan border. Latar halaman tetap tulang, tombol utama tetap arang.
 - Tidak ada warna lain di luar tabel ini.
 - Tidak ada gradien, glow, atau glassmorphism.
@@ -56,8 +58,8 @@ Aturan:
 Alasan: Marcellus memberi karakter klasik dan dikurasi, Hanken Grotesk menjaga kesan bersih dan netral.
 
 Skala:
-- Label kecil kapital: 11px, `letter-spacing: 0.14em`, `text-transform: uppercase`, warna ash
-- Label section: Marcellus 13px, warna ash
+- Label kecil kapital: 11px, `letter-spacing: 0.14em`, `text-transform: uppercase`, warna slate
+- Label section: Marcellus 13px, warna slate
 - Keterangan: 12 sampai 13px
 - Teks: 14 sampai 15px, line-height 1.6
 - Paragraf pembuka: 20px, warna graphite, rata tengah, lebar maksimal sekitar 460px
@@ -89,12 +91,12 @@ Bold (700) hanya untuk harga dan tombol utama. Semua angka memakai `font-variant
 ## Halaman
 
 ### Navigasi
-Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan (Event, Tiket saya, Masuk atau nama akun), 14px, warna ash, tanpa latar dan tanpa border.
+Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan (Event, Tiket saya, Masuk atau nama akun), 14px, warna slate, tanpa latar dan tanpa border.
 
 ### Daftar event (pembeli)
 - Paragraf pembuka sebagai hero, tanpa judul besar dan tanpa tombol.
 - Label section Marcellus kecil, lalu **grid tile galeri tiga kolom** (dua kolom di tablet, satu di ponsel).
-- Setiap tile: kartu wall dengan sampul buram kecil di tengah dan bayangan hangat. Di bawah, satu baris: nama event di kiri, sisa kursi di kanan dengan warna status (ash kalau masih banyak, oker kalau tinggal sedikit, oxblood kalau habis).
+- Setiap tile: kartu wall dengan sampul buram kecil di tengah dan bayangan hangat. Di bawah, satu baris: nama event di kiri, sisa kursi di kanan dengan warna status (slate kalau masih banyak, oker teks `#8c6221` kalau tinggal sedikit, oxblood kalau habis).
 
 ### Detail event dan pemesanan
 - Pita gelap karbon di atas: label kecil, nama event Marcellus kapital besar, tanggal dan tempat.
@@ -102,7 +104,7 @@ Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan (Event, Tike
 - Tipe yang habis tampil abu abu dengan keterangan oxblood "Habis".
 
 ### Pesanan aktif
-Kartu dengan hitung mundur besar dalam Marcellus (menit:detik), label status oker "Menunggu bayar", tombol "Bayar sekarang" dan tautan "Batalkan pesanan". Saat waktu habis, label berubah oxblood "Kedaluwarsa" dan keterangan "Waktu bayar habis. Kursi sudah dilepas untuk pembeli lain."
+Kartu dengan hitung mundur besar dalam Marcellus (menit:detik), label status oker (teks `#8c6221`, border oker) "Menunggu bayar", tombol "Bayar sekarang" dan tautan "Batalkan pesanan". Saat waktu habis, label berubah oxblood "Kedaluwarsa" dan keterangan "Waktu bayar habis. Kursi sudah dilepas untuk pembeli lain."
 
 ### Tiket saya
 Satu kartu per kursi, berbingkai ganda dengan bayangan hangat: segel LUNAS di pojok kanan atas, label "Tiket · Lot · Kursi 1 dari 2", nama event Marcellus kapital, tipe dan waktu, garis sobek putus putus, lalu kode tiket monospace dan QR code.
