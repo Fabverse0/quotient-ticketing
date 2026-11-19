@@ -102,7 +102,11 @@ async function phase(strategy) {
 
 function verdict({ strategy, k6, report }) {
   if (strategy === "naive") {
-    return report.ok ? "TIDAK SESUAI: naive seharusnya LANGGAR" : "SESUAI: naive LANGGAR";
+    // Any LANGGAR is not enough: the point is orders created beyond the quota.
+    const oversold = report.checks.find((c) => c.id === "orders_within_quota")?.ok === false;
+    return k6.created > QUOTA && oversold
+      ? `SESUAI: naive oversell, ${k6.created} pesanan untuk kuota ${QUOTA}`
+      : "TIDAK SESUAI: naive seharusnya oversell dan LANGGAR";
   }
   const exact = report.ok && k6.created === QUOTA && k6.quotaExhausted === BUYERS - QUOTA && k6.other === 0;
   return exact ? `SESUAI: atomic OK, tepat ${QUOTA} terjual` : "TIDAK SESUAI: atomic seharusnya OK dengan tepat 100 terjual";
