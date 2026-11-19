@@ -36,12 +36,12 @@ const LOCK_NOT_AVAILABLE = "55P03";
 const POOL_TIMEOUT_MESSAGE = "timeout exceeded when trying to connect";
 
 // Drizzle wraps pg errors, so the code or message may sit on any `cause`.
-function isDatabaseBusy(err: unknown): boolean {
+function databaseBusyCause(err: unknown): Error | undefined {
   for (let current = err; current instanceof Error; current = current.cause) {
-    if ((current as { code?: unknown }).code === LOCK_NOT_AVAILABLE) return true;
-    if (current.message === POOL_TIMEOUT_MESSAGE) return true;
+    if ((current as { code?: unknown }).code === LOCK_NOT_AVAILABLE) return current;
+    if (current.message === POOL_TIMEOUT_MESSAGE) return current;
   }
-  return false;
+  return undefined;
 }
 
 function describeZodError(error: ZodError): string {
@@ -67,8 +67,10 @@ export function registerErrorHandling<E extends Env>(app: Hono<E>): void {
       const code = STATUS_CODES[err.status] ?? "HTTP_ERROR";
       return c.json(body(code, err.message), err.status as ContentfulStatusCode);
     }
-    if (isDatabaseBusy(err)) {
-      console.warn("database busy: lock or connection wait timed out", err);
+    const busy = databaseBusyCause(err);
+    if (busy) {
+      // One line, no stack: under overload this fires once per rejected request.
+      console.warn(`database busy: ${busy.message}`);
       return c.json(body("DATABASE_BUSY", "Server sedang sibuk, coba lagi sebentar lagi"), 503);
     }
     console.error(err);
