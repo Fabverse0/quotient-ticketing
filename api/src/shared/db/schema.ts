@@ -32,6 +32,16 @@ export const orderStatus = pgEnum("order_status", [
   "REFUND_REQUIRED",
 ]);
 
+export const webhookOutcome = pgEnum("webhook_outcome", [
+  "PAID",
+  "ALREADY_PAID",
+  "REFUND_REQUIRED",
+  "ALREADY_REFUND_REQUIRED",
+  "AMOUNT_MISMATCH",
+  "ORDER_NOT_FOUND",
+  "PAYMENT_FAILED",
+]);
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: citext("email").notNull().unique("users_email_unique"),
@@ -170,5 +180,7 @@ export const processedEvents = pgTable("processed_events", {
   eventType: text("event_type").notNull(),
   payload: jsonb("payload").notNull(),
   orderId: uuid("order_id").references(() => orders.id),
+  // NULL only between the dedupe insert and the end of the same transaction.
+  outcome: webhookOutcome("outcome"),
   receivedAt: timestamptz("received_at").notNull().defaultNow(),
 });

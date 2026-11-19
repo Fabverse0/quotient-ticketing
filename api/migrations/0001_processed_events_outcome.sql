@@ -1,0 +1,2 @@
+CREATE TYPE "public"."webhook_outcome" AS ENUM('PAID', 'ALREADY_PAID', 'REFUND_REQUIRED', 'ALREADY_REFUND_REQUIRED', 'AMOUNT_MISMATCH', 'ORDER_NOT_FOUND', 'PAYMENT_FAILED');--> statement-breakpoint
+ALTER TABLE "processed_events" ADD COLUMN "outcome" "webhook_outcome";
