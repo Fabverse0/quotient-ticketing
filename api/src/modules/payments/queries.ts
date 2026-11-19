@@ -69,12 +69,18 @@ export async function setWebhookOutcome(tx: Executor, eventId: string, outcome: 
   await tx.update(processedEvents).set({ outcome }).where(eq(processedEvents.eventId, eventId));
 }
 
-export async function findWebhookOutcome(tx: Executor, eventId: string): Promise<WebhookOutcome | null> {
-  const [row] = await tx
-    .select({ outcome: processedEvents.outcome })
-    .from(processedEvents)
-    .where(eq(processedEvents.eventId, eventId));
-  return row?.outcome ?? null;
+// jsonb equality ignores key order and whitespace, so only a real change in
+// content counts as a different payload.
+export async function findRecordedEvent(
+  tx: Executor,
+  eventId: string,
+  payload: unknown,
+): Promise<{ outcome: WebhookOutcome | null; samePayload: boolean }> {
+  const { rows } = await tx.execute<{ outcome: WebhookOutcome | null; samePayload: boolean }>(sql`
+    SELECT outcome, payload = ${JSON.stringify(payload)}::jsonb AS "samePayload"
+    FROM processed_events WHERE event_id = ${eventId}
+  `);
+  return rows[0]!;
 }
 
 // A payment that landed after the hold ended. From PENDING the caller must

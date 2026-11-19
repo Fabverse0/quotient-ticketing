@@ -211,6 +211,34 @@ describe("POST /webhooks/payment payment.succeeded", () => {
     expect(await recorded(payload.event_id)).toHaveLength(1);
   });
 
+  it("keeps the first outcome but warns when a repeated event_id carries a different payload", async () => {
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const order = await placeOrder(2);
+    const payload = succeeded(order);
+    await send(payload);
+
+    const res = await send({ ...payload, amount: payload.amount + 1 });
+
+    expect(await res.json()).toEqual({ received: true, duplicate: true, outcome: "PAID" });
+    expect(await counters()).toEqual({ reserved: 0, sold: 2 });
+    expect((await recorded(payload.event_id))[0]!.payload).toEqual(payload);
+    expect(warnings).toHaveBeenCalledWith(expect.any(String), { eventId: payload.event_id });
+  });
+
+  it("does not warn for a repeat whose JSON differs only in key order or whitespace", async () => {
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const order = await placeOrder(1);
+    const payload = succeeded(order);
+    await send(payload);
+    const reordered = `{ "amount": ${payload.amount}, "order_id": "${order.id}",
+      "event_type": "payment.succeeded", "event_id": "${payload.event_id}" }`;
+
+    const res = await sendRaw(reordered, sign(reordered));
+
+    expect((await res.json()).duplicate).toBe(true);
+    expect(warnings).not.toHaveBeenCalled();
+  });
+
   it("processes two simultaneous copies of one event only once", async () => {
     const order = await placeOrder(2);
     const payload = succeeded(order);
