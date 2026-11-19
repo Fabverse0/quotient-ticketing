@@ -32,3 +32,6 @@ tools/load-test/.data/
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Playwright MCP screenshots and snapshots
+.playwright-mcp/
