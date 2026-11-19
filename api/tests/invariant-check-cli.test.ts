@@ -56,8 +56,8 @@ describe("formatReport", () => {
       [
         "Hasil: LANGGAR (1 dari 2 pemeriksaan dilanggar)",
         "",
-        "[OK]      reserved = jumlah quantity pesanan PENDING (2 diperiksa): reserved=3, pendingQuantity=3",
-        "[LANGGAR] jumlah quantity pesanan PENDING + PAID <= quota (2 diperiksa): activeQuantity=140, quota=120",
+        "[OK]      reserved = jumlah quantity pesanan PENDING (2 diperiksa, total: reserved=3, pendingQuantity=3)",
+        "[LANGGAR] jumlah quantity pesanan PENDING + PAID <= quota (2 diperiksa, total: activeQuantity=140, quota=120)",
         "          eventId=e1 ticketTypeId=t1 kind=REGULAR: activeQuantity=140, quota=100",
         "",
       ].join("\n"),

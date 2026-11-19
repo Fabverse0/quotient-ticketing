@@ -17,8 +17,9 @@ export function formatReport(report: InvariantReport): string {
       : `Hasil: LANGGAR (${violated} dari ${report.checks.length} pemeriksaan dilanggar)`,
     "",
   ];
+  // Totals add up every row; each violation line shows its own row's numbers.
   for (const check of report.checks) {
-    lines.push(`${check.ok ? OK : VIOLATED} ${check.description} (${check.checked} diperiksa): ${pairs(check.values, ", ")}`);
+    lines.push(`${check.ok ? OK : VIOLATED} ${check.description} (${check.checked} diperiksa, total: ${pairs(check.values, ", ")})`);
     for (const violation of check.violations) {
       lines.push(`${INDENT}${pairs(violation.subject, " ")}: ${pairs(violation.values, ", ")}`);
     }
