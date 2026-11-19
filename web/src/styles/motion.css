@@ -1,0 +1,59 @@
+/* Motion only moves transform and opacity. Reduced motion is handled in base.css. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+.shake {
+  animation: shake var(--dur-shake) var(--ease);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(var(--enter-distance));
+  transition:
+    opacity var(--dur-enter) var(--ease),
+    transform var(--dur-enter) var(--ease);
+}
+
+.reveal[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes live-swap {
+  from { opacity: 0.2; }
+  to { opacity: 1; }
+}
+
+.live-number {
+  animation: live-swap var(--dur-fast) var(--ease);
+}
+
+.link-underline {
+  background-image: linear-gradient(var(--underline), var(--underline));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  transition:
+    background-size var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+/* Hover effects only for a real pointer on a wide screen. */
+@media (hover: hover) and (min-width: 768px) {
+  .link-underline:hover {
+    background-size: 0 1px;
+    color: var(--color-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
