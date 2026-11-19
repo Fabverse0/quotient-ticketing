@@ -116,17 +116,35 @@ Orders:
 - Semua route `/orders` hanya untuk buyer; organizer 403.
 - Kode error baru: `TICKET_TYPE_NOT_FOUND`, `ORDER_NOT_FOUND`, `EVENT_ALREADY_STARTED`, `BUYER_LIMIT_EXCEEDED`, `QUOTA_EXHAUSTED`, `ORDER_NOT_PENDING`, `ORDER_EXPIRED`, `IDEMPOTENCY_KEY_REUSED` (422).
 
+Payments:
+- Satu fungsi `markOrderPaid(tx, orderId, now, buyerId?)` dipakai simulasi bayar dan webhook: `UPDATE orders SET status = 'PAID' WHERE id AND status = 'PENDING' AND expires_at > now RETURNING`. Hanya pemenang yang memindahkan `reserved` ke `sold` (relatif, `sold + reserved` tetap) dan menerbitkan tiket seq 1..q. Kalau kalah, status dibaca ulang: tidak ada `NOT_FOUND`, PAID `ALREADY_PAID` beserta tiket lama, selain itu `NOT_PAYABLE` dengan statusnya (PENDING berarti lewat `expires_at` tapi belum disapu).
+- `POST /orders/:id/pay` hanya didaftarkan kalau `createApp({ simulatedPaymentEnabled })` true. `loadConfig` mengisinya `NODE_ENV !== 'production'`; default `createApp` false. Bayar dua kali: 200 dengan pesanan dan tiket yang sama (retry setelah respons hilang), tanpa penerbitan ulang. Lewat `expires_at` atau EXPIRED 409 `ORDER_EXPIRED`, CANCELLED/REFUND_REQUIRED 409 `ORDER_NOT_PENDING`, milik orang lain 404.
+- `POST /webhooks/payment` tanpa JWT, hanya didaftarkan kalau `paymentWebhookSecret` diberikan. Body dibatasi 64 KB (413 `PAYLOAD_TOO_LARGE`) sebelum dibaca. Header `X-Signature` berisi HMAC-SHA256 hex (huruf besar boleh) dari byte body mentah (`c.req.arrayBuffer()`), dicek formatnya dengan regex lalu dibandingkan `timingSafeEqual`. Gagal 401 `INVALID_SIGNATURE`. JSON rusak 400 `INVALID_JSON`, payload tidak valid 400 `VALIDATION_ERROR`; keduanya tidak dicatat.
+- Payload snake_case: `event_id`, `event_type` (`payment.succeeded` | `payment.failed`), `order_id` (uuid), `amount`.
+- Urutan di transaksi webhook: `INSERT processed_events ... ON CONFLICT (event_id) DO NOTHING RETURNING` paling awal sebagai gerbang dedupe (salinan yang datang bersamaan menunggu di primary key). Duplikat: 200 `{ duplicate: true, outcome }` dengan outcome yang tersimpan. `order_id` diisi lewat subquery, NULL kalau pesanan tidak ada (FK tetap aman).
+- Kolom `processed_events.outcome` (enum `webhook_outcome`): `PAID`, `ALREADY_PAID`, `REFUND_REQUIRED`, `ALREADY_REFUND_REQUIRED`, `AMOUNT_MISMATCH`, `ORDER_NOT_FOUND`, `PAYMENT_FAILED`. NULL hanya di antara insert dan akhir transaksi yang sama. Semua event yang tercatat dibalas 200 `{ received, duplicate, outcome }`.
+- Amount tidak sama dengan `total_price`: outcome `AMOUNT_MISMATCH`, pesanan tetap PENDING, `console.error`, 200. `payment.failed`: outcome `PAYMENT_FAILED`, tidak mengubah apa pun.
+- `payment.succeeded` setelah waktu tahan: PENDING yang lewat `expires_at` diubah ke REFUND_REQUIRED dengan `WHERE status = 'PENDING' AND expires_at <= now` dan `reserved` dikembalikan di transaksi itu (sweeper tidak akan menyentuhnya lagi). EXPIRED/CANCELLED diubah dengan `WHERE status IN ('EXPIRED', 'CANCELLED')` tanpa menyentuh kuota. Dua UPDATE terpisah ini yang menjamin webhook terlambat dan sweeper yang bersamaan hanya mengembalikan kuota sekali.
+- `PAYMENT_WEBHOOK_SECRET` wajib, minimal 32 karakter, di semua `NODE_ENV`.
+- Kode error baru: `INVALID_SIGNATURE` (401), `PAYLOAD_TOO_LARGE` (413).
+
+Tickets:
+- Kode tiket `randomBytes(12).toString('base64url')`: 16 karakter, 96 bit, tidak berurutan. `issued_at` dari `clock`.
+- `GET /tickets` (buyer saja): semua tiket pembeli beserta `orderId`, event (id, title, venue, startsAt), dan tipe tiket, urut `issued_at` turun lalu `seq`. `GET /orders/:id` membawa `tickets` (kosong kalau belum PAID); `GET /orders` tidak.
+
 Urutan lock (wajib untuk payments dan sweeper):
 - Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
 - Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).
 
 Test:
 - Token ditandatangani dengan fake clock tapi diverifikasi Hono dengan waktu asli, dan token dengan `iat` di masa depan ditolak. Fake clock dimulai dari waktu asli dan di-reset di `beforeEach`; token dibuat sebelum clock dimajukan.
+- `tests/helpers/locks.ts` `raceBehindLock(db, lockSql, attempts)` memaksa interleaving terburuk: penahan mengunci, semua percobaan ditunggu sampai tertahan (`pg_stat_activity`), lalu dilepas. Jumlah percobaan maksimal ukuran pool test (5) dikurangi dua.
+- `tests/helpers/sweeper.ts` `expireOrder` adalah pengganti sementara sweeper untuk satu pesanan (guard PENDING yang sama, pengembalian relatif). Ganti dengan sweeper asli setelah modulnya ada.
 - `tests/quota-strategy.test.ts` membuktikan lost update secara deterministik: transaksi penahan mengunci baris, dua reservasi berjalan sampai tertahan di UPDATE (sudah membaca), lalu penahan dilepas. Kuota 1: atomic meloloskan satu, naive meloloskan dua dengan `reserved = 1`.
 
 Lingkungan lokal dan CI:
 - Postgres compose dibuka di port host 5433, karena 5432 sering dipakai Postgres lokal. Di dalam jaringan compose API tetap memakai `postgres:5432`.
-- Compose punya `JWT_SECRET` default khusus dev supaya `docker compose up` jalan di clone bersih. Jangan dipakai di luar lokal.
+- Compose punya `JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET` default khusus dev supaya `docker compose up` jalan di clone bersih. Jangan dipakai di luar lokal.
 - Image API multi-stage dan berjalan sebagai user non-root `node`.
 - CI: job `test` (typecheck + Testcontainers) di setiap push dan PR; `build-and-push` ke `ghcr.io/fabverse0/quotient-ticketing` hanya dari push ke `main`, tag `sha-<short>` dan `latest`.
 
