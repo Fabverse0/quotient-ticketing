@@ -220,11 +220,11 @@ Query inti kuota tetap ditulis sebagai raw SQL, supaya ORM tidak menyembunyikan 
 
 ---
 
-## 12. Nginx (opsional)
+## 12. Nginx
 
-> Belum diputuskan untuk dipakai.
+**Pilihan.** Nginx dipakai di container web: menyajikan hasil build frontend dan meneruskan `/api` ke API, supaya browser hanya berbicara dengan satu origin dan API tidak perlu CORS. Saat development, Vite melakukan hal yang sama lewat proxy-nya.
 
-Nginx hanya layak kalau ada frontend dan dua replika API: satu origin (tanpa CORS), load balancing, dan rate limit per IP. Biayanya satu komponen lagi dan konfigurasi khusus untuk SSE. Bukti bahwa kuota dijaga di database, bukan di memori aplikasi, sebenarnya datang dari dua replika, bukan dari Nginx.
+Load balancing dan rate limit per IP belum dipakai. Nginx hanya layak kalau ada frontend dan dua replika API: satu origin (tanpa CORS), load balancing, dan rate limit per IP. Biayanya satu komponen lagi dan konfigurasi khusus untuk SSE. Bukti bahwa kuota dijaga di database, bukan di memori aplikasi, sebenarnya datang dari dua replika, bukan dari Nginx.
 
 Catatan kalau dua replika dipakai: saat ini setiap instance menjalankan migrasi saat start. Migrasi perlu dipindah ke satu service yang berjalan sekali.
 
@@ -274,3 +274,4 @@ Mengklaim "kode saya pakai transaksi, jadi aman" itu mudah. Saya ingin membuktik
 - Payload webhook yang mengandung karakter NUL (`\u0000`) ditolak tipe `jsonb` dan berakhir 500.
 - Token JWT tetap berlaku sampai kedaluwarsa walaupun akunnya dihapus.
 - `GET /events` dan riwayat pesanan belum memakai paginasi.
+- Token JWT di frontend disimpan di `localStorage` supaya sesi bertahan setelah reload. Skrip apa pun yang berjalan di halaman (misalnya lewat celah XSS) bisa membacanya.

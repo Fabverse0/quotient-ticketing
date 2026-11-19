@@ -10,7 +10,9 @@ Stack: Node.js, TypeScript, Hono, Drizzle, PostgreSQL. Alasan setiap keputusan d
 docker compose up --build
 ```
 
-API berjalan di `http://localhost:3000`, Postgres di port host 5433. Migrasi dijalankan otomatis saat API start.
+Buka aplikasi di **http://localhost:8080**. Frontend disajikan oleh nginx di container web, yang juga meneruskan `/api` ke API, jadi browser hanya berbicara dengan satu origin. API tetap bisa dipanggil langsung di `http://localhost:3000`, dan Postgres ada di port host 5433. Migrasi dijalankan otomatis saat API start.
+
+Untuk development frontend dengan hot reload, jalankan `npm --prefix web run dev` (Vite di port 5173, `/api` diteruskan ke `localhost:3000`).
 
 ## Bukti: 200 pembeli, kuota 100
 
