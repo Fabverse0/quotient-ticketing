@@ -6,7 +6,7 @@ import { eventRoutes, organizerEventRoutes } from "./modules/events/handler.js";
 import { createEventsService } from "./modules/events/service.js";
 import { orderRoutes } from "./modules/orders/handler.js";
 import { createOrdersService } from "./modules/orders/service.js";
-import { quotaStrategies } from "./modules/orders/strategy.js";
+import { createQuotaStrategy } from "./modules/orders/strategy.js";
 import { webhookRoutes } from "./modules/payments/handler.js";
 import { createPaymentsService } from "./modules/payments/service.js";
 import { ticketRoutes } from "./modules/tickets/handler.js";
@@ -21,6 +21,8 @@ export interface AppDeps {
   clock: Clock;
   auth: AuthSettings;
   quotaStrategy?: QuotaStrategyName;
+  // Naive only: a pause between read and write so the demo oversells every run.
+  naiveRaceDelayMs?: number;
   // Off unless asked for, so a missing flag can never expose it in production.
   simulatedPaymentEnabled?: boolean;
   // Without a secret the webhook route is not registered at all.
@@ -46,6 +48,7 @@ export function createApp({
   clock,
   auth,
   quotaStrategy = "atomic",
+  naiveRaceDelayMs = 0,
   simulatedPaymentEnabled = false,
   paymentWebhookSecret,
 }: AppDeps) {
@@ -55,7 +58,7 @@ export function createApp({
   const eventsService = createEventsService({ db });
   app.route("/events", eventRoutes(eventsService, auth.secret));
   app.route("/organizer/events", organizerEventRoutes(eventsService, auth.secret));
-  const ordersService = createOrdersService({ db, clock, strategy: quotaStrategies[quotaStrategy] });
+  const ordersService = createOrdersService({ db, clock, strategy: createQuotaStrategy(quotaStrategy, naiveRaceDelayMs) });
   const paymentsService = createPaymentsService({ db, clock });
   app.route(
     "/orders",

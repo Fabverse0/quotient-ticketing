@@ -23,23 +23,31 @@ export const atomicStrategy: QuotaStrategy = {
 
 // DELIBERATELY UNSAFE, oversell demo only: two transactions can both read N and
 // both write N + q, losing one update in a way the CHECK constraint cannot see.
-export const naiveStrategy: QuotaStrategy = {
-  async reserve(tx, ticketTypeId, quantity) {
-    const { rows } = await tx.execute<{ quota: number; sold: number; reserved: number }>(sql`
-      SELECT quota, sold, reserved FROM ticket_types WHERE id = ${ticketTypeId}
-    `);
-    const current = rows[0];
-    if (!current || current.sold + current.reserved + quantity > current.quota) {
-      return false;
-    }
-    await tx.execute(sql`
-      UPDATE ticket_types SET reserved = ${current.reserved + quantity} WHERE id = ${ticketTypeId}
-    `);
-    return true;
-  },
-};
+// raceDelayMs (NAIVE_RACE_DELAY_MS) stands in for app logic between the check
+// and the write. It does not create the bug, it only makes the existing one
+// show up on every run instead of when the timing happens to line up.
+export function createNaiveStrategy(raceDelayMs = 0): QuotaStrategy {
+  return {
+    async reserve(tx, ticketTypeId, quantity) {
+      const { rows } = await tx.execute<{ quota: number; sold: number; reserved: number }>(sql`
+        SELECT quota, sold, reserved FROM ticket_types WHERE id = ${ticketTypeId}
+      `);
+      const current = rows[0];
+      if (!current || current.sold + current.reserved + quantity > current.quota) {
+        return false;
+      }
+      if (raceDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, raceDelayMs));
+      await tx.execute(sql`
+        UPDATE ticket_types SET reserved = ${current.reserved + quantity} WHERE id = ${ticketTypeId}
+      `);
+      return true;
+    },
+  };
+}
 
-export const quotaStrategies: Record<QuotaStrategyName, QuotaStrategy> = {
-  atomic: atomicStrategy,
-  naive: naiveStrategy,
-};
+export const naiveStrategy = createNaiveStrategy();
+
+// The delay only ever reaches the naive strategy.
+export function createQuotaStrategy(name: QuotaStrategyName, naiveRaceDelayMs = 0): QuotaStrategy {
+  return name === "naive" ? createNaiveStrategy(naiveRaceDelayMs) : atomicStrategy;
+}

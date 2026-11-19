@@ -83,3 +83,50 @@ describe("QUOTA_STRATEGY=naive through the API", () => {
     expect(await reservedOf(event.regular.id)).toBe(3);
   });
 });
+
+describe("NAIVE_RACE_DELAY_MS", () => {
+  async function placeConcurrently(app: ReturnType<typeof createApp>, ticketTypeId: string) {
+    const buyers = [await buyerToken(app), await buyerToken(app)];
+    return Promise.all(
+      buyers.map(async ({ token }) => {
+        const res = await call(app, "POST", "/orders", { token, body: { ticketTypeId, quantity: 1 } });
+        return res.status;
+      }),
+    );
+  }
+
+  // B starts after A has read; without the delay A commits first and B gets 409.
+  it("makes a naive request that starts later still read the stale counter", async () => {
+    const delayed = createApp({
+      db: testDb.db,
+      clock: systemClock,
+      auth: testAuthSettings,
+      quotaStrategy: "naive",
+      naiveRaceDelayMs: 500,
+    });
+    const event = await createTestEvent(delayed, organizer.token, { regular: { price: 10_000, quota: 1 } });
+    const [a, b] = [await buyerToken(delayed), await buyerToken(delayed)];
+    const order = (token: string) =>
+      call(delayed, "POST", "/orders", { token, body: { ticketTypeId: event.regular.id, quantity: 1 } });
+
+    const first = order(a.token);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const second = order(b.token);
+
+    expect([(await first).status, (await second).status]).toEqual([201, 201]);
+    expect(await reservedOf(event.regular.id)).toBe(1);
+  });
+
+  it("leaves the atomic strategy untouched", async () => {
+    const delayMs = 2000;
+    const atomic = createApp({ db: testDb.db, clock: systemClock, auth: testAuthSettings, naiveRaceDelayMs: delayMs });
+    const event = await createTestEvent(atomic, organizer.token, { regular: { price: 10_000, quota: 1 } });
+
+    const started = Date.now();
+    const statuses = await placeConcurrently(atomic, event.regular.id);
+
+    expect(Date.now() - started).toBeLessThan(delayMs);
+    expect(statuses.sort()).toEqual([201, 409]);
+    expect(await reservedOf(event.regular.id)).toBe(1);
+  });
+});

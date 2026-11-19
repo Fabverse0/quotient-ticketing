@@ -31,6 +31,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-before-any-real-use}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       QUOTA_STRATEGY: ${QUOTA_STRATEGY:-atomic}
+      NAIVE_RACE_DELAY_MS: ${NAIVE_RACE_DELAY_MS:-0}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-dev-only-webhook-secret-change-before-real-use}
       SWEEPER_ENABLED: ${SWEEPER_ENABLED:-true}
       SWEEPER_INTERVAL_MS: ${SWEEPER_INTERVAL_MS:-30000}
