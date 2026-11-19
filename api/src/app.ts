@@ -9,6 +9,8 @@ import { createOrdersService } from "./modules/orders/service.js";
 import { quotaStrategies } from "./modules/orders/strategy.js";
 import { webhookRoutes } from "./modules/payments/handler.js";
 import { createPaymentsService } from "./modules/payments/service.js";
+import { ticketRoutes } from "./modules/tickets/handler.js";
+import { createTicketsService } from "./modules/tickets/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { QuotaStrategyName } from "./shared/config.js";
 import type { Database } from "./shared/db/client.js";
@@ -59,6 +61,7 @@ export function createApp({
     "/orders",
     orderRoutes(ordersService, auth.secret, simulatedPaymentEnabled ? paymentsService : undefined),
   );
+  app.route("/tickets", ticketRoutes(createTicketsService({ db }), auth.secret));
   if (paymentWebhookSecret) {
     app.route("/webhooks", webhookRoutes(paymentsService, paymentWebhookSecret));
   }

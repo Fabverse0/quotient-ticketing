@@ -18,7 +18,8 @@ import {
 } from "./queries.js";
 import { MAX_TICKETS_PER_BUYER_PER_EVENT, ORDER_HOLD_MS, type CreateOrderInput } from "./schemas.js";
 import { atomicStrategy, type QuotaStrategy } from "./strategy.js";
-import { toOrderView, type OrderView } from "./views.js";
+import { findTicketsForOrder } from "../tickets/queries.js";
+import { toOrderDetailView, toOrderView, type OrderDetailView, type OrderView } from "./views.js";
 
 // Hashes the parsed input with a fixed field order, so the same values sent
 // with different key order or whitespace count as the same request.
@@ -153,12 +154,12 @@ export function createOrdersService({
 
     // Another buyer's order gets the same 404 as a missing one: unlike an
     // event, the existence of an order is private.
-    async get(buyerId: string, orderId: string): Promise<OrderView> {
+    async get(buyerId: string, orderId: string): Promise<OrderDetailView> {
       const found = await findOrderForBuyer(db, orderId, buyerId);
       if (!found) {
         throw new AppError(404, "ORDER_NOT_FOUND", "Pesanan tidak ditemukan");
       }
-      return toOrderView(found);
+      return toOrderDetailView(found, await findTicketsForOrder(db, orderId));
     },
   };
 }
