@@ -150,7 +150,7 @@ function OrderPanel({
                   className="size-4 accent-ink"
                 />
                 <span className={`shrink-0 ${soldOut ? "text-quiet" : "text-ink"}`}>{kindLabel(t.kind)}</span>
-                <span aria-hidden="true" className="min-w-4 flex-1 -translate-y-1 self-end border-b border-dotted border-ash" />
+                <span aria-hidden="true" className="min-w-4 flex-1 translate-y-1 self-center border-b border-dotted border-ash" />
                 <span className={`shrink-0 ${soldOut ? "text-oxblood" : "font-bold text-ink"}`}>
                   {soldOut ? "Habis" : formatRupiah(t.price)}
                 </span>

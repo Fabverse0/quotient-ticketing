@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { login, register } from "../api/auth";
+import { login, register, type User } from "../api/auth";
 import { ApiError, messageFor } from "../api/errors";
 import { homeFor, useSession } from "../auth/session";
 import { Button } from "../components/Button";
@@ -34,6 +34,9 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const { ref: formRef, shake } = useShake<HTMLFormElement>();
   const [values, setValues] = useState<Values>({ name: "", email: "", password: "" });
   const [errors, setErrors] = useState<Errors>({});
+  // A buyer sent here from a page (for example an event) goes back to it.
+  const from = (location.state as { from?: string } | null)?.from;
+  const destination = (signedIn: User) => (from && signedIn.role === "buyer" ? from : homeFor(signedIn));
 
   const submit = useMutation({
     mutationFn: (v: Values) =>
@@ -42,8 +45,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         : register({ name: v.name.trim(), email: v.email.trim(), password: v.password }),
     onSuccess: ({ token, user: signedIn }) => {
       signIn(token, signedIn);
-      const from = (location.state as { from?: string } | null)?.from;
-      navigate(from && signedIn.role === "buyer" ? from : homeFor(signedIn), { replace: true });
+      navigate(destination(signedIn), { replace: true });
     },
     onError: (error) => {
       if (error instanceof ApiError && error.code === "VALIDATION_ERROR") setErrors(error.fields as Errors);
@@ -51,7 +53,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
     },
   });
 
-  if (user) return <Navigate to={homeFor(user)} replace />;
+  // Same target as onSuccess: once the session fills in, this render runs too.
+  if (user) return <Navigate to={destination(user)} replace />;
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
