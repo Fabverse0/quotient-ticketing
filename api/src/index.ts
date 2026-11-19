@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
+import { startSweeper, sweepExpiredOrders } from "./jobs/sweeper.js";
 import { seedOrganizer } from "./modules/auth/seed.js";
 import { systemClock } from "./shared/clock.js";
 import { loadConfig } from "./shared/config.js";
@@ -24,6 +25,11 @@ if (config.quotaStrategy === "naive") {
   console.warn("QUOTA_STRATEGY=naive: quota reservation is deliberately unsafe and can oversell");
 }
 
+// Every instance runs its own sweeper; SKIP LOCKED keeps them from colliding.
+const sweeper = config.sweeper.enabled
+  ? startSweeper(() => sweepExpiredOrders(db, systemClock.now()), config.sweeper.intervalMs)
+  : undefined;
+
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`Quotient API listening on port ${info.port} (${config.nodeEnv})`);
 });
@@ -34,6 +40,7 @@ function shutdown(signal: string) {
   shuttingDown = true;
   console.log(`${signal} received, shutting down`);
   server.close(async (err) => {
+    await sweeper?.stop();
     await close();
     process.exit(err ? 1 : 0);
   });
