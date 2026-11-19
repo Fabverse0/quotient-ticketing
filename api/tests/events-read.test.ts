@@ -45,7 +45,7 @@ const setCounters = (typeId: string, sold: number, reserved: number) =>
   testDb.db.update(ticketTypes).set({ sold, reserved }).where(eq(ticketTypes.id, typeId));
 
 describe("GET /events/:id", () => {
-  it("is public and shows the remaining quota per ticket type", async () => {
+  it("is public and shows quota and remaining per ticket type, without sold or reserved", async () => {
     const created = await createEvent({ title: "Detail Event" });
 
     const res = await call(app, "GET", `/events/${created.id}`);
@@ -58,8 +58,8 @@ describe("GET /events/:id", () => {
       venue: "Gedung A",
       startsAt: "2026-12-31T12:00:00.000Z",
       ticketTypes: [
-        { id: created.ticketTypes[0]!.id, kind: "REGULAR", price: 100_000, remaining: 50 },
-        { id: created.ticketTypes[1]!.id, kind: "VIP", price: 400_000, remaining: 10 },
+        { id: created.ticketTypes[0]!.id, kind: "REGULAR", price: 100_000, quota: 50, remaining: 50 },
+        { id: created.ticketTypes[1]!.id, kind: "VIP", price: 400_000, quota: 10, remaining: 10 },
       ],
     });
   });
@@ -79,13 +79,12 @@ describe("GET /events/:id", () => {
     ]);
   });
 
-  it("does not leak organizer-only counters", async () => {
+  it("does not leak organizer-only counters: the sold and reserved split", async () => {
     const created = await createEvent();
     const body = await (await call(app, "GET", `/events/${created.id}`)).json();
 
     expect(body).not.toHaveProperty("organizerId");
     for (const type of body.ticketTypes) {
-      expect(type).not.toHaveProperty("quota");
       expect(type).not.toHaveProperty("sold");
       expect(type).not.toHaveProperty("reserved");
     }

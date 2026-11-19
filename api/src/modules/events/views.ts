@@ -35,10 +35,12 @@ export function toPublicEvent(event: EventRow, types: TicketTypeRow[]) {
     description: event.description,
     venue: event.venue,
     startsAt: event.startsAt,
+    // quota lets a seat map draw every seat; the sold/reserved split stays organizer-only.
     ticketTypes: [...types].sort(byKind).map((t) => ({
       id: t.id,
       kind: t.kind,
       price: t.price,
+      quota: t.quota,
       remaining: remaining(t),
     })),
   };
