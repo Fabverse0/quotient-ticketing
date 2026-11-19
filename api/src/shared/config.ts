@@ -20,6 +20,8 @@ const envSchema = z
       .default("1h"),
     QUOTA_STRATEGY: z.enum(QUOTA_STRATEGIES).default("atomic"),
     PAYMENT_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters"),
+    SWEEPER_ENABLED: z.stringbool().default(true),
+    SWEEPER_INTERVAL_MS: z.coerce.number().int().min(1000).max(3_600_000).default(30_000),
     ORGANIZER_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
     ORGANIZER_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(8).max(72).optional()),
   })
@@ -39,6 +41,7 @@ export interface Config {
   paymentWebhookSecret: string;
   // POST /orders/:id/pay is a stand-in for a real provider; never in production.
   simulatedPaymentEnabled: boolean;
+  sweeper: { enabled: boolean; intervalMs: number };
   organizer?: { email: string; password: string };
 }
 
@@ -63,6 +66,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     quotaStrategy: e.QUOTA_STRATEGY,
     paymentWebhookSecret: e.PAYMENT_WEBHOOK_SECRET,
     simulatedPaymentEnabled: e.NODE_ENV !== "production",
+    sweeper: { enabled: e.SWEEPER_ENABLED, intervalMs: e.SWEEPER_INTERVAL_MS },
     ...(e.ORGANIZER_EMAIL && e.ORGANIZER_PASSWORD
       ? { organizer: { email: e.ORGANIZER_EMAIL, password: e.ORGANIZER_PASSWORD } }
       : {}),
