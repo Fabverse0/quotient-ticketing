@@ -124,6 +124,17 @@ describe("POST /webhooks/payment signature", () => {
     expect((await orderRow(order.id)).status).toBe("PAID");
   });
 
+  it("refuses a body over 64 KB with 413 before checking the signature", async () => {
+    const order = await placeOrder(1);
+    const payload = succeeded(order, { padding: "x".repeat(64 * 1024) });
+
+    const res = await send(payload);
+
+    expect(res.status).toBe(413);
+    expect((await res.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
+    expect(await recorded(payload.event_id)).toHaveLength(0);
+  });
+
   it("rejects invalid JSON or an invalid payload with 400 without recording it", async () => {
     const invalidJson = "{not json";
     const invalidJsonRes = await sendRaw(invalidJson, sign(invalidJson));
