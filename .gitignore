@@ -27,3 +27,5 @@ Thumbs.db
 
 # Load test results
 tools/load-test/results/
+# Load test seed (buyer tokens)
+tools/load-test/.data/
