@@ -24,9 +24,10 @@ async function api(path, { token, body } = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(`${path} answered ${res.status}: ${JSON.stringify(json)}`);
-  return json;
+  // Text first, so a non-JSON error page still reports its status.
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${path} answered ${res.status}: ${text.slice(0, 300)}`);
+  return JSON.parse(text);
 }
 
 if (!ORGANIZER_EMAIL || !ORGANIZER_PASSWORD) {
