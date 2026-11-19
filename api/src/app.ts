@@ -7,6 +7,7 @@ import { createEventsService } from "./modules/events/service.js";
 import { orderRoutes } from "./modules/orders/handler.js";
 import { createOrdersService } from "./modules/orders/service.js";
 import { quotaStrategies } from "./modules/orders/strategy.js";
+import { webhookRoutes } from "./modules/payments/handler.js";
 import { createPaymentsService } from "./modules/payments/service.js";
 import type { Clock } from "./shared/clock.js";
 import type { QuotaStrategyName } from "./shared/config.js";
@@ -20,6 +21,8 @@ export interface AppDeps {
   quotaStrategy?: QuotaStrategyName;
   // Off unless asked for, so a missing flag can never expose it in production.
   simulatedPaymentEnabled?: boolean;
+  // Without a secret the webhook route is not registered at all.
+  paymentWebhookSecret?: string;
 }
 
 const HEALTH_DB_TIMEOUT_MS = 2000;
@@ -36,7 +39,14 @@ async function pingDatabase(db: Database): Promise<void> {
   }
 }
 
-export function createApp({ db, clock, auth, quotaStrategy = "atomic", simulatedPaymentEnabled = false }: AppDeps) {
+export function createApp({
+  db,
+  clock,
+  auth,
+  quotaStrategy = "atomic",
+  simulatedPaymentEnabled = false,
+  paymentWebhookSecret,
+}: AppDeps) {
   const app = new Hono();
 
   app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
@@ -49,6 +59,9 @@ export function createApp({ db, clock, auth, quotaStrategy = "atomic", simulated
     "/orders",
     orderRoutes(ordersService, auth.secret, simulatedPaymentEnabled ? paymentsService : undefined),
   );
+  if (paymentWebhookSecret) {
+    app.route("/webhooks", webhookRoutes(paymentsService, paymentWebhookSecret));
+  }
 
   app.get("/health", async (c) => {
     try {

@@ -1,11 +1,23 @@
 import type { Clock } from "../../shared/clock.js";
 import type { Database, Transaction } from "../../shared/db/client.js";
 import { AppError } from "../../shared/errors.js";
-import { findOrderForBuyer } from "../orders/queries.js";
+import { findOrderForBuyer, releaseReservation } from "../orders/queries.js";
 import { toOrderDetailView, type OrderDetailView } from "../orders/views.js";
 import { generateTicketCode } from "../tickets/code.js";
 import { findTicketsForOrder, insertTickets, type TicketRow } from "../tickets/queries.js";
-import { findOrderStatus, markPendingOrderPaid, moveReservationToSold } from "./queries.js";
+import {
+  findOrderStatus,
+  findOrderTotal,
+  findWebhookOutcome,
+  markClosedOrderRefundRequired,
+  markExpiredPendingRefundRequired,
+  markPendingOrderPaid,
+  moveReservationToSold,
+  recordWebhookEvent,
+  setWebhookOutcome,
+  type WebhookOutcome,
+} from "./queries.js";
+import type { PaymentWebhook } from "./schemas.js";
 
 export type PaymentResult =
   | { kind: "PAID"; tickets: TicketRow[] }
@@ -44,6 +56,52 @@ export async function markOrderPaid(
   }
 }
 
+// Each guard is its own status-conditioned UPDATE, so a sweeper expiring the
+// same order at the same moment cannot make the hold come back twice.
+async function flagRefundRequired(tx: Transaction, orderId: string, now: Date): Promise<WebhookOutcome> {
+  const pending = await markExpiredPendingRefundRequired(tx, orderId, now);
+  if (pending) {
+    await releaseReservation(tx, pending.ticketTypeId, pending.quantity);
+    return "REFUND_REQUIRED";
+  }
+  if (await markClosedOrderRefundRequired(tx, orderId, now)) {
+    return "REFUND_REQUIRED";
+  }
+  const status = await findOrderStatus(tx, orderId);
+  if (status === "REFUND_REQUIRED") return "ALREADY_REFUND_REQUIRED";
+  if (status === "PAID") return "ALREADY_PAID";
+  throw new Error(`order ${orderId} in unexpected state ${status} for a late payment`);
+}
+
+async function processWebhook(tx: Transaction, event: PaymentWebhook, now: Date): Promise<WebhookOutcome> {
+  const totalPrice = await findOrderTotal(tx, event.order_id);
+  if (totalPrice === undefined) return "ORDER_NOT_FOUND";
+  // A failed attempt changes nothing: the hold runs out on its own.
+  if (event.event_type === "payment.failed") return "PAYMENT_FAILED";
+  if (event.amount !== totalPrice) return "AMOUNT_MISMATCH";
+
+  const result = await markOrderPaid(tx, event.order_id, now);
+  switch (result.kind) {
+    case "PAID":
+    case "ALREADY_PAID":
+      return result.kind;
+    case "NOT_FOUND":
+      return "ORDER_NOT_FOUND";
+    case "PENDING_PAST_EXPIRY":
+      return flagRefundRequired(tx, event.order_id, now);
+    case "NOT_PAYABLE":
+      return result.status === "REFUND_REQUIRED"
+        ? "ALREADY_REFUND_REQUIRED"
+        : flagRefundRequired(tx, event.order_id, now);
+  }
+}
+
+export interface WebhookReceipt {
+  received: true;
+  duplicate: boolean;
+  outcome: WebhookOutcome | null;
+}
+
 export function createPaymentsService({ db, clock }: { db: Database; clock: Clock }) {
   return {
     // Paying twice returns the same order and tickets: the usual cause is a
@@ -66,6 +124,32 @@ export function createPaymentsService({ db, clock }: { db: Database; clock: Cloc
             return toOrderDetailView(order!, result.tickets);
           }
         }
+      });
+    },
+
+    // Every recorded event is answered with 2xx, whatever its outcome, so the
+    // provider stops retrying. Recording and processing share one transaction:
+    // if processing fails, the event is not recorded and a retry runs again.
+    async handleWebhook(event: PaymentWebhook, payload: unknown): Promise<WebhookReceipt> {
+      return db.transaction(async (tx) => {
+        const now = clock.now();
+        const isNew = await recordWebhookEvent(tx, {
+          eventId: event.event_id,
+          eventType: event.event_type,
+          payload,
+          orderId: event.order_id,
+          receivedAt: now,
+        });
+        if (!isNew) {
+          return { received: true, duplicate: true, outcome: await findWebhookOutcome(tx, event.event_id) };
+        }
+
+        const outcome = await processWebhook(tx, event, now);
+        await setWebhookOutcome(tx, event.event_id, outcome);
+        if (outcome === "AMOUNT_MISMATCH") {
+          console.error("payment webhook amount mismatch", { eventId: event.event_id, orderId: event.order_id });
+        }
+        return { received: true, duplicate: false, outcome };
       });
     },
   };

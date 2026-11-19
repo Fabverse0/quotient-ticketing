@@ -1,6 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { Executor } from "../../shared/db/client.js";
-import { orders } from "../../shared/db/schema.js";
+import { orders, processedEvents } from "../../shared/db/schema.js";
+
+export type WebhookOutcome = NonNullable<(typeof processedEvents.$inferSelect)["outcome"]>;
 
 const ownedBy = (buyerId?: string) => (buyerId ? sql`AND buyer_id = ${buyerId}` : sql``);
 
@@ -35,4 +37,68 @@ export async function findOrderStatus(tx: Executor, orderId: string, buyerId?: s
     .where(buyerId ? and(eq(orders.id, orderId), eq(orders.buyerId, buyerId)) : eq(orders.id, orderId))
     .limit(1);
   return row?.status;
+}
+
+export async function findOrderTotal(tx: Executor, orderId: string): Promise<number | undefined> {
+  const [row] = await tx.select({ totalPrice: orders.totalPrice }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  return row?.totalPrice;
+}
+
+// The dedupe gate, run before any processing. A concurrent copy of the same
+// event waits here on the primary key until the first one commits, then gets
+// no row back. order_id is stored only when the order exists, to keep the FK.
+export async function recordWebhookEvent(
+  tx: Executor,
+  values: { eventId: string; eventType: string; payload: unknown; orderId: string; receivedAt: Date },
+): Promise<boolean> {
+  const { rows } = await tx.execute(sql`
+    INSERT INTO processed_events (event_id, event_type, payload, order_id, received_at)
+    VALUES (
+      ${values.eventId},
+      ${values.eventType},
+      ${JSON.stringify(values.payload)}::jsonb,
+      (SELECT id FROM orders WHERE id = ${values.orderId}),
+      ${values.receivedAt}
+    )
+    ON CONFLICT (event_id) DO NOTHING
+    RETURNING event_id
+  `);
+  return rows.length > 0;
+}
+
+export async function setWebhookOutcome(tx: Executor, eventId: string, outcome: WebhookOutcome): Promise<void> {
+  await tx.update(processedEvents).set({ outcome }).where(eq(processedEvents.eventId, eventId));
+}
+
+export async function findWebhookOutcome(tx: Executor, eventId: string): Promise<WebhookOutcome | null> {
+  const [row] = await tx
+    .select({ outcome: processedEvents.outcome })
+    .from(processedEvents)
+    .where(eq(processedEvents.eventId, eventId));
+  return row?.outcome ?? null;
+}
+
+// A payment that landed after the hold ended. From PENDING the caller must
+// give the hold back, since the sweeper only ever looks at PENDING rows.
+export async function markExpiredPendingRefundRequired(
+  tx: Executor,
+  orderId: string,
+  now: Date,
+): Promise<{ ticketTypeId: string; quantity: number } | undefined> {
+  const { rows } = await tx.execute<{ ticketTypeId: string; quantity: number }>(sql`
+    UPDATE orders SET status = 'REFUND_REQUIRED', refund_required_at = ${now}
+    WHERE id = ${orderId} AND status = 'PENDING' AND expires_at <= ${now}
+    RETURNING ticket_type_id AS "ticketTypeId", quantity
+  `);
+  return rows[0];
+}
+
+// EXPIRED and CANCELLED already returned their hold, so the counters stay put.
+export async function markClosedOrderRefundRequired(tx: Executor, orderId: string, now: Date): Promise<boolean> {
+  const { rows } = await tx.execute(sql`
+    UPDATE orders SET status = 'REFUND_REQUIRED', refund_required_at = ${now}
+    WHERE id = ${orderId} AND status IN ('EXPIRED', 'CANCELLED')
+    RETURNING id
+  `);
+  return rows.length > 0;
 }
