@@ -139,3 +139,31 @@ export async function releaseReservation(tx: Executor, ticketTypeId: string, qua
     UPDATE ticket_types SET reserved = reserved - ${quantity} WHERE id = ${ticketTypeId}
   `);
 }
+
+// SKIP LOCKED leaves rows another transaction holds for the next round, so
+// several API instances can sweep at once. The result is sorted by ticket type
+// id so every caller updates ticket_types in the same order.
+export async function expireDueOrders(
+  tx: Executor,
+  now: Date,
+  limit: number,
+): Promise<Array<{ ticketTypeId: string; quantity: number; orders: number }>> {
+  const { rows } = await tx.execute<{ ticketTypeId: string; quantity: number; orders: number }>(sql`
+    WITH expired AS (
+      UPDATE orders SET status = 'EXPIRED', expired_at = ${now}
+      WHERE status = 'PENDING' AND id IN (
+        SELECT id FROM orders
+        WHERE status = 'PENDING' AND expires_at <= ${now}
+        ORDER BY expires_at
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING ticket_type_id, quantity
+    )
+    SELECT ticket_type_id AS "ticketTypeId", SUM(quantity)::int AS quantity, COUNT(*)::int AS orders
+    FROM expired
+    GROUP BY ticket_type_id
+    ORDER BY ticket_type_id
+  `);
+  return rows;
+}
