@@ -20,6 +20,7 @@ describe("loadConfig", () => {
       jwtSecret: validEnv.JWT_SECRET,
       jwtExpiresInSeconds: 3600,
       quotaStrategy: "atomic",
+      naiveRaceDelayMs: 0,
       paymentWebhookSecret: validEnv.PAYMENT_WEBHOOK_SECRET,
       simulatedPaymentEnabled: true,
       sweeper: { enabled: true, intervalMs: 30_000 },
@@ -128,6 +129,12 @@ describe("loadConfig", () => {
 
   it("accepts the naive quota strategy", () => {
     expect(loadConfig({ ...validEnv, QUOTA_STRATEGY: "naive" }).quotaStrategy).toBe("naive");
+  });
+
+  it("reads NAIVE_RACE_DELAY_MS and caps it at one second", () => {
+    expect(loadConfig({ ...validEnv, NAIVE_RACE_DELAY_MS: "30" }).naiveRaceDelayMs).toBe(30);
+    expect(() => loadConfig({ ...validEnv, NAIVE_RACE_DELAY_MS: "1001" })).toThrow(/NAIVE_RACE_DELAY_MS/);
+    expect(() => loadConfig({ ...validEnv, NAIVE_RACE_DELAY_MS: "-1" })).toThrow(/NAIVE_RACE_DELAY_MS/);
   });
 
   it("rejects an unknown QUOTA_STRATEGY", () => {

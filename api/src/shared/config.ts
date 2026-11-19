@@ -23,6 +23,7 @@ const envSchema = z
       .regex(/^\d+[smhd]$/, "must look like 30m, 1h or 7d")
       .default("1h"),
     QUOTA_STRATEGY: z.enum(QUOTA_STRATEGIES).default("atomic"),
+    NAIVE_RACE_DELAY_MS: z.coerce.number().int().min(0).max(1000).default(0),
     PAYMENT_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters"),
     SWEEPER_ENABLED: z.stringbool().default(true),
     SWEEPER_INTERVAL_MS: z.coerce.number().int().min(1000).max(3_600_000).default(30_000),
@@ -44,6 +45,7 @@ export interface Config {
   jwtSecret: string;
   jwtExpiresInSeconds: number;
   quotaStrategy: QuotaStrategyName;
+  naiveRaceDelayMs: number;
   paymentWebhookSecret: string;
   // POST /orders/:id/pay is a stand-in for a real provider; never in production.
   simulatedPaymentEnabled: boolean;
@@ -72,6 +74,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jwtSecret: e.JWT_SECRET,
     jwtExpiresInSeconds: durationToSeconds(e.JWT_EXPIRES_IN),
     quotaStrategy: e.QUOTA_STRATEGY,
+    naiveRaceDelayMs: e.NAIVE_RACE_DELAY_MS,
     paymentWebhookSecret: e.PAYMENT_WEBHOOK_SECRET,
     simulatedPaymentEnabled: e.NODE_ENV !== "production",
     sweeper: { enabled: e.SWEEPER_ENABLED, intervalMs: e.SWEEPER_INTERVAL_MS },

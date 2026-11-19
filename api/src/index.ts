@@ -18,6 +18,7 @@ const app = createApp({
   clock: systemClock,
   auth: { secret: config.jwtSecret, expiresInSeconds: config.jwtExpiresInSeconds },
   quotaStrategy: config.quotaStrategy,
+  naiveRaceDelayMs: config.naiveRaceDelayMs,
   simulatedPaymentEnabled: config.simulatedPaymentEnabled,
   paymentWebhookSecret: config.paymentWebhookSecret,
 });
