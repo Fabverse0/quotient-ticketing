@@ -51,19 +51,24 @@ export interface BuyerTally {
   overLimit: Array<{ buyerId: string; eventId: string; activeQuantity: number }>;
 }
 
+// One statement: a CTE referenced more than once is materialized a single time.
 export async function tallyActiveTicketsPerBuyer(tx: Executor, limit: number): Promise<BuyerTally> {
-  const active = sql`
-    SELECT buyer_id, event_id, SUM(quantity)::int AS quantity
-    FROM orders WHERE status IN ('PENDING', 'PAID')
-    GROUP BY buyer_id, event_id
-  `;
-  const { rows: summary } = await tx.execute<{ pairs: number; maxActiveQuantity: number }>(sql`
-    SELECT COUNT(*)::int AS pairs, COALESCE(MAX(quantity), 0)::int AS "maxActiveQuantity" FROM (${active}) a
+  const { rows } = await tx.execute<{ pairs: number; maxActiveQuantity: number; overLimit: BuyerTally["overLimit"] }>(sql`
+    WITH active AS (
+      SELECT buyer_id, event_id, SUM(quantity)::int AS quantity
+      FROM orders WHERE status IN ('PENDING', 'PAID')
+      GROUP BY buyer_id, event_id
+    )
+    SELECT
+      (SELECT COUNT(*)::int FROM active) AS pairs,
+      (SELECT COALESCE(MAX(quantity), 0)::int FROM active) AS "maxActiveQuantity",
+      COALESCE(
+        (SELECT json_agg(
+            json_build_object('buyerId', buyer_id, 'eventId', event_id, 'activeQuantity', quantity)
+            ORDER BY event_id, buyer_id)
+         FROM active WHERE quantity > ${limit}),
+        '[]'::json
+      ) AS "overLimit"
   `);
-  const { rows: overLimit } = await tx.execute<{ buyerId: string; eventId: string; activeQuantity: number }>(sql`
-    SELECT buyer_id AS "buyerId", event_id AS "eventId", quantity AS "activeQuantity"
-    FROM (${active}) a WHERE quantity > ${limit}
-    ORDER BY event_id, buyer_id
-  `);
-  return { ...summary[0]!, overLimit };
+  return rows[0]!;
 }
