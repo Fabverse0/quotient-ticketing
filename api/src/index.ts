@@ -35,16 +35,17 @@ const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
 });
 
 let shuttingDown = false;
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal} received, shutting down`);
+  // Before server.close, which can wait a long time on open connections.
+  await sweeper?.stop();
   server.close(async (err) => {
-    await sweeper?.stop();
     await close();
     process.exit(err ? 1 : 0);
   });
 }
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
