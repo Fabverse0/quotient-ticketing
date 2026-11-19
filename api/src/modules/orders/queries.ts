@@ -140,9 +140,9 @@ export async function releaseReservation(tx: Executor, ticketTypeId: string, qua
   `);
 }
 
-// SKIP LOCKED leaves rows another transaction holds for the next round, so
-// several API instances can sweep at once. The result is sorted by ticket type
-// id so every caller updates ticket_types in the same order.
+// SKIP LOCKED leaves rows held elsewhere for the next round, so instances can
+// sweep at once. The PENDING guard that counts is in the locking subselect; the
+// UPDATE repeats it. Sorted by ticket type id for a fixed lock order.
 export async function expireDueOrders(
   tx: Executor,
   now: Date,
