@@ -30,7 +30,7 @@ Nama "Quotient" berarti hasil bagi: kuota yang terbatas dibagi tepat ke banyak p
 | Database | PostgreSQL (satu satunya sumber kebenaran) |
 | Query | Drizzle. Query inti kuota ditulis sebagai raw SQL |
 | Migrasi | drizzle-kit |
-| Job kedaluwarsa | pg-boss / sweeper berkala |
+| Job kedaluwarsa | Sweeper berkala (setTimeout berantai), tanpa pg-boss |
 | Auth | JWT (peran buyer dan organizer) |
 | Real time | SSE + Postgres LISTEN/NOTIFY |
 | Test | Vitest + Testcontainers (Postgres asli, bukan mock) |
@@ -134,6 +134,17 @@ Tickets:
 - Kode tiket `randomBytes(12).toString('base64url')`: 16 karakter, 96 bit, tidak berurutan. `issued_at` dari `clock`.
 - `GET /tickets` (buyer saja): semua tiket pembeli beserta `orderId`, event (id, title, venue, startsAt), dan tipe tiket, urut `issued_at` turun lalu `seq`. `GET /orders/:id` membawa `tickets` (kosong kalau belum PAID); `GET /orders` tidak.
 
+Sweeper:
+- `sweepExpiredOrders(db, now, batchSize = 100)` di `api/src/jobs/sweeper.ts` mengembalikan jumlah pesanan yang di-expire. Bisa dipanggil langsung dari test dengan waktu dari fake clock.
+- Satu batch satu transaksi: `UPDATE orders SET status = 'EXPIRED' WHERE status = 'PENDING' AND id IN (SELECT ... WHERE status = 'PENDING' AND expires_at <= now ORDER BY expires_at LIMIT n FOR UPDATE SKIP LOCKED)`, lalu `reserved` dikembalikan relatif per tipe tiket, digabung dengan `SUM(quantity)` dan diurutkan berdasarkan `ticket_type_id`. Batch diulang sampai hasilnya lebih kecil dari ukuran batch.
+- Guard PENDING yang menahan beban ada di subselect yang mengunci. Kalau dihapus dari situ, subselect mengambil baris non-PENDING, UPDATE menyaringnya, batch jadi pendek, dan loop berhenti sebelum semua pesanan jatuh tempo diproses. Guard di UPDATE adalah pengulangan.
+- `SKIP LOCKED` menjaga kelancaran, bukan kebenaran: baris yang sedang dipegang bayar, cancel, webhook, atau sweeper lain dilewati sampai putaran berikutnya. Tanpa `SKIP LOCKED`, angka kuota tetap benar karena guard PENDING, tetapi sweeper ikut tertahan.
+- Batas waktunya `expires_at <= now`, kebalikan tepat dari bayar dan cancel (`expires_at > now`). Untuk satu nilai `now`, pesanan hanya bisa bayar/batal atau di-expire, tidak keduanya.
+- Jadwal memakai `setTimeout` berantai: putaran berikutnya dijadwalkan setelah putaran sebelumnya selesai, jadi tidak pernah tumpang tindih di satu instance. Putaran pertama langsung saat start. Putaran yang gagal (termasuk throw sinkron) dicatat dengan `console.error`, jadwal tetap jalan.
+- `SWEEPER_ENABLED` (default true) dan `SWEEPER_INTERVAL_MS` (default 30000, 1000 sampai 3600000). Sweeper dijalankan dari `index.ts`, bukan `createApp`, jadi test HTTP tidak pernah menjalankan timer. Saat shutdown sweeper dihentikan (menunggu putaran yang sedang jalan) sebelum `server.close`.
+- Setiap instance API menjalankan sweeper sendiri; `SKIP LOCKED` membuat mereka membagi baris, tidak menggandakan pengembalian.
+- Tidak memakai pg-boss: `schedule()` pg-boss mengevaluasi jadwal tiap 30 detik dan mengirim paling banyak satu job per menit (dokumentasinya: "sends at most one job a minute"), jadi interval 30 detik tidak bisa dipenuhi tanpa merakit sendiri lewat `send` dengan `startAfter`. Jaminan utamanya (job tidak dikerjakan dua kali) sudah diberikan `SKIP LOCKED` dan guard PENDING, sementara pg-boss menambah dependency, skema `pgboss` dengan migrasinya sendiri, dan pool koneksi kedua. Retry tidak dibutuhkan karena putaran berikutnya mengulang pekerjaan yang sama dengan aman.
+
 Urutan lock (wajib untuk payments dan sweeper):
 - Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
 - Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).
@@ -141,7 +152,7 @@ Urutan lock (wajib untuk payments dan sweeper):
 Test:
 - Token ditandatangani dengan fake clock tapi diverifikasi Hono dengan waktu asli, dan token dengan `iat` di masa depan ditolak. Fake clock dimulai dari waktu asli dan di-reset di `beforeEach`; token dibuat sebelum clock dimajukan.
 - `tests/helpers/locks.ts` `raceBehindLock(db, lockSql, attempts)` memaksa interleaving terburuk: penahan mengunci, semua percobaan ditunggu sampai tertahan (`pg_stat_activity`), lalu dilepas. Jumlah percobaan maksimal ukuran pool test (5) dikurangi dua.
-- `tests/helpers/sweeper.ts` `expireOrder` adalah pengganti sementara sweeper untuk satu pesanan (guard PENDING yang sama, pengembalian relatif). Ganti dengan sweeper asli setelah modulnya ada.
+- `holdLock(db, lockSql)` memegang lock sampai `release()`. `stageBehindLock(db, lockSql, blocked, whileBlocked?)` memulai tiap langkah `blocked` setelah langkah sebelumnya tertahan, sehingga urutan pengambilan lock baris pasti, lalu menjalankan `whileBlocked` yang harus selesai tanpa menunggu (gagal setelah 2 detik). Dipakai untuk race dengan sweeper, karena dengan `SKIP LOCKED` sweeper tidak pernah tertahan di baris pesanan: race webhook terlambat vs sweeper diuji dua arah (webhook memegang pesanan duluan, atau sweeper duluan).
 - `tests/quota-strategy.test.ts` membuktikan lost update secara deterministik: transaksi penahan mengunci baris, dua reservasi berjalan sampai tertahan di UPDATE (sudah membaca), lalu penahan dilepas. Kuota 1: atomic meloloskan satu, naive meloloskan dua dengan `reserved = 1`.
 
 Lingkungan lokal dan CI:
