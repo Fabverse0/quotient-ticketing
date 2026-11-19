@@ -60,6 +60,23 @@ describe("startSweeper", () => {
     await sweeper.stop();
   });
 
+  it("treats a sweep that throws synchronously like a failed sweep", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sweep = vi
+      .fn<() => Promise<number>>()
+      .mockImplementationOnce(() => {
+        throw new Error("thrown before any promise");
+      })
+      .mockResolvedValue(0);
+    const sweeper = startSweeper(sweep, INTERVAL_MS);
+
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS);
+
+    expect(errors).toHaveBeenCalledWith(expect.any(String), expect.any(Error));
+    expect(sweep).toHaveBeenCalledTimes(2);
+    await sweeper.stop();
+  });
+
   it("waits for a running sweep on stop and schedules nothing after it", async () => {
     const slow = deferred();
     const sweep = vi.fn(() => slow.promise);

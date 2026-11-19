@@ -28,7 +28,8 @@ export function startSweeper(sweep: () => Promise<number>, intervalMs: number): 
   let running: Promise<void> = Promise.resolve();
 
   const tick = () => {
-    running = sweep()
+    running = Promise.resolve()
+      .then(sweep)
       .then((expired) => {
         if (expired > 0) console.log(`Sweeper expired ${expired} order(s)`);
       })
