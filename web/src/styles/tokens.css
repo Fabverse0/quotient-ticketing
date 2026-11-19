@@ -1,0 +1,75 @@
+/* Every design value from DESIGN.md lives here. Components use these tokens
+   (as Tailwind utilities or var()), never raw values. */
+@theme {
+  /* Neutrals */
+  --color-canvas: #f4f3f1;
+  --color-wall: #efeeeb;
+  --color-field: #f9f8f6;
+  --color-ink: #333333;
+  --color-ink-deep: #121212;
+  --color-graphite: #4d4d4d;
+  --color-slate: #666666;
+  --color-ash: #aaaaaa;
+  --color-mist: #dddddd;
+  --color-wash: #f5f5f5;
+  --color-carbon: #252525;
+
+  /* Accent and status: text, labels, lines and borders only */
+  --color-umber: #945c26;
+  --color-sage: #5e6b4e;
+  --color-ochre: #b07d2b;
+  --color-oxblood: #7a2e2a;
+  --color-inkblue: #2f4858;
+
+  /* WCAG AA for small text: ash (2.1:1) and ochre (3.3:1) fail on canvas, so
+     text uses these; ash and ochre stay for lines, borders and large marks. */
+  --color-quiet: #666666;
+  --color-ochre-text: #8c6221;
+
+  /* Type */
+  --font-display: "Marcellus", Georgia, serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --text-label: 11px;
+  --text-caption: 12px;
+  --text-small: 13px;
+  --text-body: 15px;
+  --text-lead: 20px;
+  --text-title: 30px;
+  --text-band: 40px;
+  --text-figure: 44px;
+
+  --tracking-label: 0.14em;
+  --tracking-band: 0.06em;
+  --leading-body: 1.6;
+
+  /* Shape */
+  --radius-ui: 5px;
+  --radius-cover: 4px;
+  --radius-tag: 3px;
+
+  --shadow-rest: 0 5px 15px rgba(90, 50, 40, 0.15), 0 4px 8px rgba(80, 40, 30, 0.1);
+  --shadow-lift: 0 5px 10px rgba(100, 60, 50, 0.1), 0 15px 25px rgba(100, 60, 50, 0.4);
+
+  /* Sizes */
+  --size-button: 44px;
+  --size-field: 40px;
+  --width-lead: 460px;
+  --width-form: 380px;
+  --blur-cover: 7px;
+}
+
+:root {
+  /* Motion */
+  --dur-fast: 0.3s;
+  --dur-lift: 0.4s;
+  --dur-enter: 0.85s;
+  --dur-shake: 0.75s;
+  --lift-distance: -10px;
+  --enter-distance: 20px;
+  --ease: ease;
+
+  --focus-ring: 0 0 0 3px rgba(51, 51, 51, 0.18);
+  --underline: rgba(0, 0, 0, 0.15);
+}
