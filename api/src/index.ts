@@ -17,6 +17,7 @@ const app = createApp({
   clock: systemClock,
   auth: { secret: config.jwtSecret, expiresInSeconds: config.jwtExpiresInSeconds },
   quotaStrategy: config.quotaStrategy,
+  simulatedPaymentEnabled: config.simulatedPaymentEnabled,
 });
 if (config.quotaStrategy === "naive") {
   console.warn("QUOTA_STRATEGY=naive: quota reservation is deliberately unsafe and can oversell");

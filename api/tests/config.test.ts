@@ -19,6 +19,7 @@ describe("loadConfig", () => {
       jwtExpiresInSeconds: 3600,
       quotaStrategy: "atomic",
       paymentWebhookSecret: validEnv.PAYMENT_WEBHOOK_SECRET,
+      simulatedPaymentEnabled: true,
     });
     expect(config.organizer).toBeUndefined();
   });
@@ -41,6 +42,14 @@ describe("loadConfig", () => {
 
   it("rejects an out-of-range port", () => {
     expect(() => loadConfig({ ...validEnv, PORT: "70000" })).toThrow(/PORT/);
+  });
+
+  it.each([
+    ["development", true],
+    ["test", true],
+    ["production", false],
+  ])("with NODE_ENV=%s the simulated payment endpoint enabled is %s", (nodeEnv, enabled) => {
+    expect(loadConfig({ ...validEnv, NODE_ENV: nodeEnv }).simulatedPaymentEnabled).toBe(enabled);
   });
 
   it("rejects an unknown NODE_ENV", () => {
