@@ -13,7 +13,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "invariants": "tsx --env-file-if-exists=../.env ../tools/invariant-check/check.mts"
+    "invariants": "tsx --env-file-if-exists=../.env ../tools/invariant-check/check.mts",
+    "demo-data": "tsx --env-file-if-exists=../.env ../tools/demo-data/seed.mts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.9",
