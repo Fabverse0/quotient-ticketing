@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "tests", "drizzle.config.ts"]
+  "include": ["src", "tests", "drizzle.config.ts", "../tools/invariant-check"]
 }
