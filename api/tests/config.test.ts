@@ -15,6 +15,8 @@ describe("loadConfig", () => {
       port: 3000,
       databaseUrl: "postgres://u:p@localhost:5432/db",
       dbPoolMax: 10,
+      dbConnectionTimeoutMs: 5000,
+      dbLockTimeoutMs: 5000,
       jwtSecret: validEnv.JWT_SECRET,
       jwtExpiresInSeconds: 3600,
       quotaStrategy: "atomic",
@@ -29,6 +31,17 @@ describe("loadConfig", () => {
     const config = loadConfig({ ...validEnv, PORT: "8080", DB_POOL_MAX: "25" });
     expect(config.port).toBe(8080);
     expect(config.dbPoolMax).toBe(25);
+  });
+
+  it("reads the database connection and lock timeouts", () => {
+    const config = loadConfig({ ...validEnv, DB_CONNECTION_TIMEOUT_MS: "2500", DB_LOCK_TIMEOUT_MS: "750" });
+    expect(config.dbConnectionTimeoutMs).toBe(2500);
+    expect(config.dbLockTimeoutMs).toBe(750);
+  });
+
+  it("rejects database timeouts outside 100 ms to 60 s", () => {
+    expect(() => loadConfig({ ...validEnv, DB_CONNECTION_TIMEOUT_MS: "0" })).toThrow(/DB_CONNECTION_TIMEOUT_MS/);
+    expect(() => loadConfig({ ...validEnv, DB_LOCK_TIMEOUT_MS: "60001" })).toThrow(/DB_LOCK_TIMEOUT_MS/);
   });
 
   it("fails when DATABASE_URL is missing and names the variable", () => {

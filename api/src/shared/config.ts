@@ -5,6 +5,8 @@ const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 export const QUOTA_STRATEGIES = ["atomic", "naive"] as const;
 export type QuotaStrategyName = (typeof QUOTA_STRATEGIES)[number];
 
+export const DEFAULT_DB_TIMEOUT_MS = 5000;
+
 const DURATION_UNITS = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
 const envSchema = z
@@ -13,6 +15,8 @@ const envSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must start with postgres:// or postgresql://"),
     DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(DEFAULT_DB_TIMEOUT_MS),
+    DB_LOCK_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(DEFAULT_DB_TIMEOUT_MS),
     JWT_SECRET: z.string().min(32, "must be at least 32 characters"),
     JWT_EXPIRES_IN: z
       .string()
@@ -35,6 +39,8 @@ export interface Config {
   port: number;
   databaseUrl: string;
   dbPoolMax: number;
+  dbConnectionTimeoutMs: number;
+  dbLockTimeoutMs: number;
   jwtSecret: string;
   jwtExpiresInSeconds: number;
   quotaStrategy: QuotaStrategyName;
@@ -61,6 +67,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     port: e.PORT,
     databaseUrl: e.DATABASE_URL,
     dbPoolMax: e.DB_POOL_MAX,
+    dbConnectionTimeoutMs: e.DB_CONNECTION_TIMEOUT_MS,
+    dbLockTimeoutMs: e.DB_LOCK_TIMEOUT_MS,
     jwtSecret: e.JWT_SECRET,
     jwtExpiresInSeconds: durationToSeconds(e.JWT_EXPIRES_IN),
     quotaStrategy: e.QUOTA_STRATEGY,

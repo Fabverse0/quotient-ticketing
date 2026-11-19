@@ -26,6 +26,8 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-quotient}:${POSTGRES_PASSWORD:-quotient}@postgres:5432/${POSTGRES_DB:-quotient}
       DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      DB_CONNECTION_TIMEOUT_MS: ${DB_CONNECTION_TIMEOUT_MS:-5000}
+      DB_LOCK_TIMEOUT_MS: ${DB_LOCK_TIMEOUT_MS:-5000}
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-before-any-real-use}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       QUOTA_STRATEGY: ${QUOTA_STRATEGY:-atomic}
