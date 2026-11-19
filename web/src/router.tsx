@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { RequireRole } from "./components/RequireRole";
 import { AuthPage } from "./pages/AuthPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { EventDetailPage } from "./pages/EventDetailPage";
 import { EventsPage } from "./pages/EventsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
@@ -10,14 +11,9 @@ export const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      {
-        path: "/",
-        element: (
-          <RequireRole role="buyer">
-            <EventsPage />
-          </RequireRole>
-        ),
-      },
+      // Browsing is public; ordering asks for a buyer account.
+      { path: "/", element: <EventsPage /> },
+      { path: "/event/:id", element: <EventDetailPage /> },
       {
         path: "/organizer",
         element: (
