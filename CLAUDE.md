@@ -258,3 +258,27 @@ Opsional: Postgres best practices (Supabase agent skills) saat menulis migrasi, 
 Mekanisme keamanan dan pembuktian (CHECK constraint, advisory lock, strategi naive, invariant checker, Idempotency-Key) adalah kebutuhan, bukan kode berlebih. Jangan disederhanakan.
 
 Diagram ditulis dalam Mermaid di `docs/diagrams/`. Setelah migrasi final, cocokkan ERD dengan file migrasi.
+
+### Frontend: siapa memutuskan dan peran tiap skill
+
+Yang memutuskan desain adalah Fab. DESIGN.md adalah catatan keputusannya saat ini dan menjadi titik awal setiap halaman, bukan aturan yang tidak boleh diubah.
+
+Kalau sebuah skill menyarankan sesuatu yang berbeda dari DESIGN.md:
+1. Jangan memutuskan sendiri dan jangan diam diam mengikuti salah satunya.
+2. Sampaikan usulannya dalam format: "Saran: ... Alasan: ... Bedanya dengan DESIGN.md: ... Dampak kalau diterapkan: ...".
+3. Tunggu keputusan Fab. Kalau disetujui, terapkan dan perbarui DESIGN.md di commit yang sama.
+4. Saran yang menyangkut aturan wajib antislop (kontras, keyboard, fokus, state kosong, loading, error, tombol yang tidak berfungsi, klaim palsu) bukan soal selera. Terapkan, lalu beri tahu Fab.
+
+Pembagian peran supaya skill tidak saling bertabrakan:
+
+| Skill | Perannya | Bukan perannya |
+|---|---|---|
+| DESIGN.md | Arah: palet, tipografi, komponen, tata letak, animasi | |
+| frontend-design | Eksekusi: menerjemahkan DESIGN.md jadi kode yang rapi, mengusulkan perbaikan visual | Mengganti arah desain tanpa persetujuan |
+| antislop-ui, antislop-human | Penyaring dan aksesibilitas, Delivery Gate sebelum halaman dianggap selesai | Menentukan gaya baru |
+| antislop-code | Membersihkan komentar khas AI | Mengubah perilaku kode |
+| Context7 | Dokumentasi React, Vite, TanStack Query, Tailwind versi terbaru | |
+| playwright | Membuka halaman, klik setiap alur, screenshot sebagai bukti | Menulis desain |
+| chrome-devtools-mcp | Mengukur performa, network, console | Mengubah desain demi angka tanpa persetujuan |
+
+Urutan kerja per halaman: baca DESIGN.md, bangun dengan frontend-design, saring dengan antislop, verifikasi dengan playwright, ukur dengan chrome-devtools-mcp kalau halaman itu berat. Semua saran yang muncul di langkah mana pun mengikuti format di atas.
