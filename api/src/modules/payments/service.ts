@@ -23,8 +23,8 @@ export type PaymentResult =
   | { kind: "PAID"; tickets: TicketRow[] }
   | { kind: "ALREADY_PAID"; tickets: TicketRow[] }
   | { kind: "NOT_FOUND" }
-  | { kind: "PENDING_PAST_EXPIRY" }
-  | { kind: "NOT_PAYABLE"; status: "CANCELLED" | "EXPIRED" | "REFUND_REQUIRED" };
+  // PENDING here means the row is past expires_at but not yet swept.
+  | { kind: "NOT_PAYABLE"; status: "PENDING" | "CANCELLED" | "EXPIRED" | "REFUND_REQUIRED" };
 
 // Lock order: the orders row (status transition) first, then ticket_types.
 // Only the transaction that won the transition touches the counters or
@@ -43,17 +43,9 @@ export async function markOrderPaid(
   }
 
   const status = await findOrderStatus(tx, orderId, buyerId);
-  switch (status) {
-    case undefined:
-      return { kind: "NOT_FOUND" };
-    case "PAID":
-      return { kind: "ALREADY_PAID", tickets: await findTicketsForOrder(tx, orderId) };
-    // Still PENDING after a lost transition means the expires_at guard failed.
-    case "PENDING":
-      return { kind: "PENDING_PAST_EXPIRY" };
-    default:
-      return { kind: "NOT_PAYABLE", status };
-  }
+  if (status === undefined) return { kind: "NOT_FOUND" };
+  if (status === "PAID") return { kind: "ALREADY_PAID", tickets: await findTicketsForOrder(tx, orderId) };
+  return { kind: "NOT_PAYABLE", status };
 }
 
 // Each guard is its own status-conditioned UPDATE, so a sweeper expiring the
@@ -87,8 +79,6 @@ async function processWebhook(tx: Transaction, event: PaymentWebhook, now: Date)
       return result.kind;
     case "NOT_FOUND":
       return "ORDER_NOT_FOUND";
-    case "PENDING_PAST_EXPIRY":
-      return flagRefundRequired(tx, event.order_id, now);
     case "NOT_PAYABLE":
       return result.status === "REFUND_REQUIRED"
         ? "ALREADY_REFUND_REQUIRED"
@@ -112,10 +102,8 @@ export function createPaymentsService({ db, clock }: { db: Database; clock: Cloc
         switch (result.kind) {
           case "NOT_FOUND":
             throw new AppError(404, "ORDER_NOT_FOUND", "Pesanan tidak ditemukan");
-          case "PENDING_PAST_EXPIRY":
-            throw new AppError(409, "ORDER_EXPIRED", "Waktu tahan pesanan sudah habis");
           case "NOT_PAYABLE":
-            if (result.status === "EXPIRED") {
+            if (result.status === "PENDING" || result.status === "EXPIRED") {
               throw new AppError(409, "ORDER_EXPIRED", "Waktu tahan pesanan sudah habis");
             }
             throw new AppError(409, "ORDER_NOT_PENDING", "Pesanan sudah tidak berstatus PENDING");
