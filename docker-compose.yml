@@ -29,6 +29,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-before-any-real-use}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       QUOTA_STRATEGY: ${QUOTA_STRATEGY:-atomic}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-dev-only-webhook-secret-change-before-real-use}
       ORGANIZER_EMAIL: ${ORGANIZER_EMAIL:-}
       ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-}
     ports:

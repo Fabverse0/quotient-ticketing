@@ -4,6 +4,7 @@ import { loadConfig } from "../src/shared/config.js";
 const validEnv = {
   DATABASE_URL: "postgres://u:p@localhost:5432/db",
   JWT_SECRET: "a-test-secret-that-is-at-least-32-chars",
+  PAYMENT_WEBHOOK_SECRET: "a-webhook-secret-that-is-32-chars-long",
 };
 
 describe("loadConfig", () => {
@@ -17,6 +18,7 @@ describe("loadConfig", () => {
       jwtSecret: validEnv.JWT_SECRET,
       jwtExpiresInSeconds: 3600,
       quotaStrategy: "atomic",
+      paymentWebhookSecret: validEnv.PAYMENT_WEBHOOK_SECRET,
     });
     expect(config.organizer).toBeUndefined();
   });
@@ -28,7 +30,9 @@ describe("loadConfig", () => {
   });
 
   it("fails when DATABASE_URL is missing and names the variable", () => {
-    expect(() => loadConfig({ JWT_SECRET: validEnv.JWT_SECRET })).toThrow(/DATABASE_URL/);
+    expect(() =>
+      loadConfig({ JWT_SECRET: validEnv.JWT_SECRET, PAYMENT_WEBHOOK_SECRET: validEnv.PAYMENT_WEBHOOK_SECRET }),
+    ).toThrow(/DATABASE_URL/);
   });
 
   it("rejects a DATABASE_URL that is not a postgres URL", () => {
@@ -46,6 +50,12 @@ describe("loadConfig", () => {
   it("requires JWT_SECRET of at least 32 characters", () => {
     expect(() => loadConfig({ DATABASE_URL: validEnv.DATABASE_URL })).toThrow(/JWT_SECRET/);
     expect(() => loadConfig({ ...validEnv, JWT_SECRET: "too-short" })).toThrow(/JWT_SECRET/);
+  });
+
+  it("requires PAYMENT_WEBHOOK_SECRET of at least 32 characters", () => {
+    const { PAYMENT_WEBHOOK_SECRET: _, ...withoutSecret } = validEnv;
+    expect(() => loadConfig(withoutSecret)).toThrow(/PAYMENT_WEBHOOK_SECRET/);
+    expect(() => loadConfig({ ...validEnv, PAYMENT_WEBHOOK_SECRET: "too-short" })).toThrow(/PAYMENT_WEBHOOK_SECRET/);
   });
 
   it.each([

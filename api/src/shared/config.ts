@@ -19,6 +19,7 @@ const envSchema = z
       .regex(/^\d+[smhd]$/, "must look like 30m, 1h or 7d")
       .default("1h"),
     QUOTA_STRATEGY: z.enum(QUOTA_STRATEGIES).default("atomic"),
+    PAYMENT_WEBHOOK_SECRET: z.string().min(32, "must be at least 32 characters"),
     ORGANIZER_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
     ORGANIZER_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(8).max(72).optional()),
   })
@@ -35,6 +36,7 @@ export interface Config {
   jwtSecret: string;
   jwtExpiresInSeconds: number;
   quotaStrategy: QuotaStrategyName;
+  paymentWebhookSecret: string;
   organizer?: { email: string; password: string };
 }
 
@@ -57,6 +59,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jwtSecret: e.JWT_SECRET,
     jwtExpiresInSeconds: durationToSeconds(e.JWT_EXPIRES_IN),
     quotaStrategy: e.QUOTA_STRATEGY,
+    paymentWebhookSecret: e.PAYMENT_WEBHOOK_SECRET,
     ...(e.ORGANIZER_EMAIL && e.ORGANIZER_PASSWORD
       ? { organizer: { email: e.ORGANIZER_EMAIL, password: e.ORGANIZER_PASSWORD } }
       : {}),
