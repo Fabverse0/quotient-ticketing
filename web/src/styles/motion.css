@@ -57,3 +57,57 @@
     transform: none;
   }
 }
+
+/* Tile lift: the cover rises; the lifted shadow lives on its own layer and only
+   its opacity animates, so box-shadow is never animated. */
+.lift {
+  position: relative;
+  transition: transform var(--dur-lift) var(--ease);
+}
+
+.lift::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-cover);
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-lift) var(--ease);
+}
+
+.swap {
+  display: grid;
+}
+
+.swap > * {
+  grid-area: 1 / 1;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.swap > :last-child {
+  opacity: 0;
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  .tile:hover .lift,
+  .tile:focus-visible .lift {
+    transform: translateY(var(--lift-distance));
+    will-change: transform;
+  }
+
+  .tile:hover .lift::after,
+  .tile:focus-visible .lift::after {
+    opacity: 1;
+  }
+
+  .tile:hover .swap > :first-child,
+  .tile:focus-visible .swap > :first-child {
+    opacity: 0;
+  }
+
+  .tile:hover .swap > :last-child,
+  .tile:focus-visible .swap > :last-child {
+    opacity: 1;
+  }
+}
