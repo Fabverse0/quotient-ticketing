@@ -48,7 +48,7 @@ export async function findOrderTotal(tx: Executor, orderId: string): Promise<num
 // gets no row back. order_id stays NULL for an unknown order, so the FK holds.
 export async function recordWebhookEvent(
   tx: Executor,
-  values: { eventId: string; eventType: string; payload: unknown; orderId: string; receivedAt: Date },
+  values: { eventId: string; eventType: string; payload: unknown; orderId: string | null; receivedAt: Date },
 ): Promise<boolean> {
   const { rows } = await tx.execute(sql`
     INSERT INTO processed_events (event_id, event_type, payload, order_id, received_at)

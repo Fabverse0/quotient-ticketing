@@ -40,6 +40,7 @@ export const webhookOutcome = pgEnum("webhook_outcome", [
   "AMOUNT_MISMATCH",
   "ORDER_NOT_FOUND",
   "PAYMENT_FAILED",
+  "IGNORED",
 ]);
 
 export const users = pgTable("users", {

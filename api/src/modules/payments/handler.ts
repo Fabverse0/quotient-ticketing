@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { AppError } from "../../shared/errors.js";
-import { paymentWebhookSchema } from "./schemas.js";
+import { parseWebhook } from "./schemas.js";
 import type { PaymentsService } from "./service.js";
 import { verifySignature } from "./signature.js";
 
@@ -31,8 +31,7 @@ export function webhookRoutes(service: PaymentsService, secret: string) {
     } catch {
       throw new AppError(400, "INVALID_JSON", "Body request harus berupa JSON yang valid");
     }
-    const event = paymentWebhookSchema.parse(payload);
-    return c.json(await service.handleWebhook(event, payload));
+    return c.json(await service.handleWebhook(parseWebhook(payload), payload));
   });
 
   return routes;
