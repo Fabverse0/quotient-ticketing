@@ -5,7 +5,7 @@
 //   node tools/demo.mjs          tears the demo stack down at the end
 //   node tools/demo.mjs --keep   leaves the atomic stack running for inspection
 //
-// Exit code 0 only when naive shows a violation and atomic sells exactly the quota.
+// Exit code 0 only when naive oversells (LANGGAR) and atomic sells exactly the quota.
 import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
