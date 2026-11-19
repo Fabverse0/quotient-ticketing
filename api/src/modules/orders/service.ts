@@ -2,6 +2,7 @@ import type { Clock } from "../../shared/clock.js";
 import { createHash } from "node:crypto";
 import type { Database, Transaction } from "../../shared/db/client.js";
 import { AppError } from "../../shared/errors.js";
+import { findTicketsForOrder } from "../tickets/queries.js";
 import { withCapacityGuard } from "./capacity-guard.js";
 import {
   activeTicketCount,
@@ -18,7 +19,6 @@ import {
 } from "./queries.js";
 import { MAX_TICKETS_PER_BUYER_PER_EVENT, ORDER_HOLD_MS, type CreateOrderInput } from "./schemas.js";
 import { atomicStrategy, type QuotaStrategy } from "./strategy.js";
-import { findTicketsForOrder } from "../tickets/queries.js";
 import { toOrderDetailView, toOrderView, type OrderDetailView, type OrderView } from "./views.js";
 
 // Hashes the parsed input with a fixed field order, so the same values sent

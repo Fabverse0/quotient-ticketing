@@ -5,8 +5,7 @@ import { paymentWebhookSchema } from "./schemas.js";
 import type { PaymentsService } from "./service.js";
 import { verifySignature } from "./signature.js";
 
-// The route is unauthenticated until the HMAC check, so the body is capped
-// before it is buffered. Real provider events are a few hundred bytes.
+// Unauthenticated until the HMAC check, so the body is capped before buffering.
 const MAX_WEBHOOK_BODY_BYTES = 64 * 1024;
 
 // No JWT: the provider proves itself with an HMAC of the raw body.
