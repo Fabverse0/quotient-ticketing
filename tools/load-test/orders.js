@@ -74,11 +74,12 @@ export function handleSummary(data) {
       max: data.metrics.http_req_duration?.values.max,
     },
   };
+  const ms = (value) => (value === undefined ? "-" : Math.round(value));
   const text =
     `\n[${LABEL}] ${summary.requests} requests: ${summary.created} x 201, ` +
     `${summary.quotaExhausted} x 409 QUOTA_EXHAUSTED, ${summary.other} other ${JSON.stringify(otherByStatus)}\n` +
-    `[${LABEL}] latency ms: median ${Math.round(summary.durationMs.median)}, ` +
-    `p95 ${Math.round(summary.durationMs.p95)}, max ${Math.round(summary.durationMs.max)}\n`;
+    `[${LABEL}] latency ms: median ${ms(summary.durationMs.median)}, ` +
+    `p95 ${ms(summary.durationMs.p95)}, max ${ms(summary.durationMs.max)}\n`;
   return {
     stdout: text,
     [`./results/k6-${LABEL}.json`]: JSON.stringify(summary, null, 2),
