@@ -3,7 +3,9 @@ import { createDatabase } from "./shared/db/client.js";
 import { runMigrations } from "./shared/db/migrate.js";
 
 const config = loadConfig();
-const { db, close } = createDatabase(config);
+// No lock_timeout: a migration waiting behind another replica's migration or a
+// long transaction must wait, not fail and keep the API from starting.
+const { db, close } = createDatabase({ ...config, dbLockTimeoutMs: 0 });
 
 try {
   await runMigrations(db);

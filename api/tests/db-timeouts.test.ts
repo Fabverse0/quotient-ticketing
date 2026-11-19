@@ -20,6 +20,22 @@ afterAll(async () => {
 });
 
 describe("database timeouts", () => {
+  it("sets lock_timeout on every pooled session, and 0 turns it off for migrations", async () => {
+    const show = async (dbLockTimeoutMs?: number) => {
+      const database = createDatabase({ databaseUrl: testDb.databaseUrl, dbPoolMax: 1, dbLockTimeoutMs });
+      try {
+        const { rows } = await database.db.execute<{ lock_timeout: string }>(sql`SHOW lock_timeout`);
+        return rows[0]!.lock_timeout;
+      } finally {
+        await database.close();
+      }
+    };
+
+    expect(await show()).toBe("5s");
+    expect(await show(750)).toBe("750ms");
+    expect(await show(0)).toBe("0");
+  });
+
   it("answers 503 DATABASE_BUSY when a lock wait exceeds the lock timeout", async () => {
     const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
     const impatient = createDatabase({ databaseUrl: testDb.databaseUrl, dbPoolMax: 2, dbLockTimeoutMs: 200 });
