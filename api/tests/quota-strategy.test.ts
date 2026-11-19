@@ -6,6 +6,7 @@ import { systemClock } from "../src/shared/clock.js";
 import { ticketTypes } from "../src/shared/db/schema.js";
 import { buyerToken, call, organizerToken, testAuthSettings } from "./helpers/auth.js";
 import { createTestEvent } from "./helpers/events.js";
+import { fulfilledValues, raceBehindLock } from "./helpers/locks.js";
 import { startTestDatabase } from "./helpers/postgres.js";
 
 let testDb: Awaited<ReturnType<typeof startTestDatabase>>;
@@ -29,41 +30,14 @@ async function reservedOf(ticketTypeId: string) {
   return row!.reserved;
 }
 
-async function waitForLockWaiters(count: number) {
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const { rows } = await testDb.db.execute<{ waiting: number }>(sql`
-      SELECT count(*)::int AS waiting FROM pg_stat_activity
-      WHERE datname = current_database() AND wait_event_type = 'Lock'
-    `);
-    if (rows[0]!.waiting >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error(`expected ${count} backends waiting on a lock`);
-}
-
-// Forces the worst interleaving: both reservations read the row, then block on
-// their UPDATE behind a holder transaction that commits afterwards.
+// Both reservations read the row, then block on their UPDATE behind the holder.
 async function raceTwoReservations(strategy: QuotaStrategy, ticketTypeId: string) {
-  let signalLocked!: () => void;
-  let release!: () => void;
-  const locked = new Promise<void>((resolve) => (signalLocked = resolve));
-  const released = new Promise<void>((resolve) => (release = resolve));
-
-  const holder = testDb.db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT 1 FROM ticket_types WHERE id = ${ticketTypeId} FOR UPDATE`);
-    signalLocked();
-    await released;
-  });
-  await locked;
-
-  const attempts = [1, 2].map(() => testDb.db.transaction((tx) => strategy.reserve(tx, ticketTypeId, 1)));
-  try {
-    await waitForLockWaiters(2);
-  } finally {
-    release();
-    await holder;
-  }
-  return (await Promise.all(attempts)).sort();
+  const results = await raceBehindLock(
+    testDb.db,
+    sql`SELECT 1 FROM ticket_types WHERE id = ${ticketTypeId} FOR UPDATE`,
+    [1, 2].map(() => () => testDb.db.transaction((tx) => strategy.reserve(tx, ticketTypeId, 1))),
+  );
+  return fulfilledValues(results).sort();
 }
 
 describe("quota strategies under the worst interleaving", () => {
