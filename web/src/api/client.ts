@@ -1,5 +1,6 @@
 import { ApiError, parseFieldErrors } from "./errors";
 import { readToken } from "../auth/token";
+import { recordServerDate } from "../lib/serverClock";
 
 // Same origin: nginx (and the Vite proxy in development) forwards /api to the API.
 const BASE = "/api";
@@ -10,13 +11,21 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
-export async function api<T>(path: string, { method = "GET", body }: { method?: string; body?: unknown } = {}): Promise<T> {
+interface Options {
+  method?: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+}
+
+export async function api<T>(path: string, { method = "GET", body, headers = {} }: Options = {}): Promise<T> {
   const token = readToken();
+  const sentAt = Date.now();
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
       headers: {
+        ...headers,
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
@@ -25,6 +34,7 @@ export async function api<T>(path: string, { method = "GET", body }: { method?: 
   } catch {
     throw new ApiError(0, "NETWORK", "network error");
   }
+  recordServerDate(res.headers.get("Date"), sentAt, Date.now());
 
   const text = await res.text();
   const json = text ? safeParse(text) : undefined;

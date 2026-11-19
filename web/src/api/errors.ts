@@ -11,6 +11,12 @@ const MESSAGES: Record<string, string> = {
   UNAUTHORIZED: "Masuk dulu untuk melanjutkan.",
   FORBIDDEN: "Akun ini tidak punya akses ke halaman itu.",
   NETWORK: "Tidak bisa menghubungi server. Periksa koneksi lalu coba lagi.",
+  EVENT_NOT_FOUND: "Event ini tidak ditemukan.",
+  ORDER_NOT_FOUND: "Pesanan ini tidak ditemukan.",
+  TICKET_TYPE_NOT_FOUND: "Tipe tiket ini tidak ditemukan. Muat ulang halaman.",
+  EVENT_ALREADY_STARTED: "Event ini sudah dimulai, pemesanan ditutup.",
+  ORDER_NOT_PENDING: "Pesanan ini sudah tidak menunggu bayar.",
+  IDEMPOTENCY_KEY_REUSED: "Permintaan ini bentrok dengan percobaan sebelumnya. Coba pesan lagi.",
 };
 
 export class ApiError extends Error {
