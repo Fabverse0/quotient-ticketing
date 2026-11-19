@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type StatusTone = "sage" | "ochre" | "oxblood" | "inkblue" | "umber";
+export type StatusTone = "sage" | "ochre" | "oxblood" | "inkblue" | "umber" | "quiet";
 
 const tones: Record<StatusTone, string> = {
   sage: "border-sage text-sage",
@@ -8,6 +8,7 @@ const tones: Record<StatusTone, string> = {
   oxblood: "border-oxblood text-oxblood",
   inkblue: "border-inkblue text-inkblue",
   umber: "border-umber text-umber",
+  quiet: "border-ash text-quiet",
 };
 
 // Status color only on text and border; "Perlu refund" is the one filled label.

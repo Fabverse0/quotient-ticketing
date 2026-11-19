@@ -4,7 +4,7 @@ import { useSession } from "../auth/session";
 const navLink = ({ isActive }: { isActive: boolean }) =>
   `inline-flex min-h-(--size-button) items-center text-sm ${isActive ? "text-ink" : "text-quiet"}`;
 
-// Only pages that exist are linked; "Tiket saya" arrives with its page.
+// Only pages that exist are linked, per role.
 export function Layout() {
   const { user, signOut } = useSession();
   return (
@@ -17,13 +17,23 @@ export function Layout() {
           >
             Q
           </span>
-          <span className="font-display text-lg">Quotient</span>
+          <span className="hidden font-display text-lg sm:inline">Quotient</span>
         </Link>
-        <nav aria-label="Navigasi utama" className="flex items-center gap-5">
-          {user?.role === "buyer" && (
+        <nav aria-label="Navigasi utama" className="flex items-center gap-4 sm:gap-5">
+          {user?.role !== "organizer" && (
             <NavLink to="/" end className={navLink}>
               <span className="link-underline">Event</span>
             </NavLink>
+          )}
+          {user?.role === "buyer" && (
+            <>
+              <NavLink to="/pesanan" className={navLink}>
+                <span className="link-underline">Pesanan</span>
+              </NavLink>
+              <NavLink to="/tiket" className={navLink}>
+                <span className="link-underline">Tiket saya</span>
+              </NavLink>
+            </>
           )}
           {user?.role === "organizer" && (
             <NavLink to="/organizer" className={navLink}>
@@ -32,7 +42,7 @@ export function Layout() {
           )}
           {user ? (
             <>
-              <span className="hidden text-sm text-quiet sm:inline">{user.name}</span>
+              <span className="hidden text-sm text-quiet lg:inline">{user.name}</span>
               <button type="button" onClick={signOut} className="inline-flex min-h-(--size-button) items-center text-sm text-quiet">
                 <span className="link-underline">Keluar</span>
               </button>
