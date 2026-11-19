@@ -6,6 +6,9 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { EventDetailPage } from "./pages/EventDetailPage";
 import { EventsPage } from "./pages/EventsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { OrderPage } from "./pages/OrderPage";
+import { OrdersPage } from "./pages/OrdersPage";
+import { TicketsPage } from "./pages/TicketsPage";
 
 export const router = createBrowserRouter([
   {
@@ -14,6 +17,30 @@ export const router = createBrowserRouter([
       // Browsing is public; ordering asks for a buyer account.
       { path: "/", element: <EventsPage /> },
       { path: "/event/:id", element: <EventDetailPage /> },
+      {
+        path: "/pesanan",
+        element: (
+          <RequireRole role="buyer">
+            <OrdersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/pesanan/:id",
+        element: (
+          <RequireRole role="buyer">
+            <OrderPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/tiket",
+        element: (
+          <RequireRole role="buyer">
+            <TicketsPage />
+          </RequireRole>
+        ),
+      },
       {
         path: "/organizer",
         element: (
