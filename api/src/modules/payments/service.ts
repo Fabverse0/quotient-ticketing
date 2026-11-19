@@ -8,7 +8,7 @@ import { findTicketsForOrder, insertTickets, type TicketRow } from "../tickets/q
 import {
   findOrderStatus,
   findOrderTotal,
-  findWebhookOutcome,
+  findRecordedEvent,
   markClosedOrderRefundRequired,
   markExpiredPendingRefundRequired,
   markPendingOrderPaid,
@@ -129,7 +129,11 @@ export function createPaymentsService({ db, clock }: { db: Database; clock: Cloc
           receivedAt: now,
         });
         if (!isNew) {
-          return { received: true, duplicate: true, outcome: await findWebhookOutcome(tx, envelope.event_id) };
+          const recorded = await findRecordedEvent(tx, envelope.event_id, payload);
+          if (!recorded.samePayload) {
+            console.warn("payment webhook event_id reused with a different payload", { eventId: envelope.event_id });
+          }
+          return { received: true, duplicate: true, outcome: recorded.outcome };
         }
 
         const outcome = payment ? await processWebhook(tx, payment, now) : "IGNORED";
