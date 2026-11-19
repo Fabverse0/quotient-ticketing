@@ -48,6 +48,7 @@
   --radius-ui: 5px;
   --radius-cover: 4px;
   --radius-tag: 3px;
+  --radius-seat: 1px;
 
   --shadow-rest: 0 5px 15px rgba(90, 50, 40, 0.15), 0 4px 8px rgba(80, 40, 30, 0.1);
   --shadow-lift: 0 5px 10px rgba(100, 60, 50, 0.1), 0 15px 25px rgba(100, 60, 50, 0.4);
@@ -58,6 +59,11 @@
   --width-lead: 460px;
   --width-form: 380px;
   --blur-cover: 7px;
+  --size-qr: 128px;
+  --size-seat: 10px;
+  --size-seat-large: 14px;
+  --size-dose: 44px;
+  --width-detail: 1040px;
 }
 
 :root {
