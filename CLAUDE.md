@@ -166,6 +166,20 @@ Uji beban dan demo:
 - `tools/load-test/orders.js` (k6, image dikunci `grafana/k6:2.3.0`): executor `per-vu-iterations`, 200 VU masing-masing 1 iterasi, memanggil API di jaringan compose (`http://api:3000`). Melaporkan jumlah 201, 409 `QUOTA_EXHAUSTED`, dan status lain ke `tools/load-test/results/` (di-gitignore).
 - `node tools/demo.mjs` menjalankan naive lalu atomic, masing-masing di database yang di-reset (`down -v`), di compose project terpisah `quotient-demo` (port 3100 dan 5434), sehingga stack dev dan datanya tidak tersentuh. Exit 0 hanya kalau naive oversell (pesanan dibuat melebihi kuota dan `orders_within_quota` LANGGAR), dan atomic OK dengan tepat 100 pesanan dibuat. Ringkasan run sungguhan dicatat di README.
 
+Frontend (web/):
+- Vite + React 19 + TypeScript, React Router (mode data, `createBrowserRouter` dari `react-router`, `RouterProvider` dari `react-router/dom`), TanStack Query, Tailwind v4. Tanpa library UI atau animasi.
+- React Router terpasang di 7.18.x karena 8.x butuh Node 22.22 ke atas, sedangkan Node lokal 22.19. API yang dipakai sama di v7 dan v8.
+- Semua nilai desain ada di `web/src/styles/tokens.css` sebagai token Tailwind `@theme` (warna, font, ukuran teks, sudut, bayangan, ukuran) dan variabel `:root` (durasi animasi, cincin fokus). Komponen hanya memakai token, tidak pernah nilai mentah.
+- Kontras: ash `#aaaaaa` (2,1:1) dan ochre `#B07D2B` (3,3:1) gagal WCAG AA untuk teks kecil di latar canvas. Teks yang di DESIGN.md memakai ash memakai token `quiet` (`#666666`, 4,95:1 di wall), dan teks status ochre memakai `ochre-text` (`#8c6221`, 4,66:1 di wall). Ash dan ochre asli tetap untuk garis, border, dan elemen non-teks.
+- Animasi hanya `transform` dan `opacity`, mati di `prefers-reduced-motion`, dan efek hover hanya untuk pointer sungguhan di lebar 768px ke atas.
+- Satu origin: frontend selalu memanggil `/api/...`. Di container, nginx (`nginxinc/nginx-unprivileged:1.28.0-alpine`, port 8080) meneruskan `/api/` ke `http://api:3000/` dengan prefix dibuang; di development, Vite `server.proxy` melakukan hal yang sama. API tidak memakai CORS.
+- Token JWT di memori dan `localStorage` (`quotient.token`), dicatat di DECISIONS.md sebagai risiko XSS. Peran diambil dari `GET /auth/me`, bukan dari decode token di browser. Respons 401 untuk token tersimpan (selain `INVALID_CREDENTIALS`) mengakhiri sesi.
+- Kode error API dipetakan ke kalimat DESIGN.md di `web/src/api/errors.ts`. `VALIDATION_ERROR` dipecah per kolom dari pesan `field: pesan; field: pesan`.
+- Routing per peran: belum masuk ke `/masuk`, buyer ke `/` (daftar event dari `GET /events`), organizer ke `/organizer`, peran yang salah ke halaman awal perannya. Dashboard masih kerangka berlabel jujur. Navigasi hanya menautkan halaman yang sudah ada.
+- Semua link, tab, dan tombol punya target sentuh minimal 44px; garis bawah tautan ada di `span` label, bukan di kotak yang lebih tinggi.
+- Compose: service `web` di port host 8080 (`WEB_PORT`), start setelah `api` sehat. Healthcheck memakai `127.0.0.1`, karena `localhost` di container di-resolve ke IPv6 sementara nginx hanya mendengarkan IPv4. `tools/demo.mjs` hanya menyalakan `api` supaya tidak mengambil port 8080 dari stack dev.
+- Screenshot dan snapshot Playwright MCP tersimpan di `.playwright-mcp/` (di-gitignore).
+
 Urutan lock (wajib untuk payments dan sweeper):
 - Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
 - Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).
