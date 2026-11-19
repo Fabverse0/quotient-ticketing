@@ -13,10 +13,8 @@ async function waitForLockWaiters(db: Database, count: number) {
   throw new Error(`expected ${count} backends waiting on a lock`);
 }
 
-// Forces the worst interleaving: a holder transaction takes `lock`, every
-// attempt runs until it blocks behind it, then the holder commits and the
-// attempts race. Each attempt holds a pool connection, so keep the count
-// below the pool size minus two (holder and the waiter poll).
+// Every attempt blocks behind a holder of `lock`, then all race when it commits.
+// Each attempt holds a pool connection: keep the count below pool size minus two.
 export async function raceBehindLock<T>(
   db: Database,
   lock: SQL,

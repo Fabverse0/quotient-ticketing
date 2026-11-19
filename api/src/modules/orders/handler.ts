@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { parseJsonBody, parseParams } from "../../shared/validation.js";
 import { requireAuth, requireRole, type AuthEnv } from "../auth/middleware.js";
-import { createOrderSchema, idempotencyHeaderSchema, orderIdParamSchema } from "./schemas.js";
 import type { PaymentsService } from "../payments/service.js";
+import { createOrderSchema, idempotencyHeaderSchema, orderIdParamSchema } from "./schemas.js";
 import type { OrdersService } from "./service.js";
 
 // The pay route is only registered when a payments service is passed in.

@@ -26,9 +26,8 @@ export type PaymentResult =
   // PENDING here means the row is past expires_at but not yet swept.
   | { kind: "NOT_PAYABLE"; status: "PENDING" | "CANCELLED" | "EXPIRED" | "REFUND_REQUIRED" };
 
-// Lock order: the orders row (status transition) first, then ticket_types.
-// Only the transaction that won the transition touches the counters or
-// issues tickets; everyone else only reads why it lost.
+// Lock order: the orders row first, then ticket_types. Only the winner of the
+// transition touches the counters or issues tickets.
 export async function markOrderPaid(
   tx: Transaction,
   orderId: string,
@@ -115,9 +114,8 @@ export function createPaymentsService({ db, clock }: { db: Database; clock: Cloc
       });
     },
 
-    // Every recorded event is answered with 2xx, whatever its outcome, so the
-    // provider stops retrying. Recording and processing share one transaction:
-    // if processing fails, the event is not recorded and a retry runs again.
+    // Every recorded event gets 2xx so the provider stops retrying. A failed
+    // transaction records nothing, so the retry is processed again.
     async handleWebhook(event: PaymentWebhook, payload: unknown): Promise<WebhookReceipt> {
       return db.transaction(async (tx) => {
         const now = clock.now();

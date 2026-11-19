@@ -44,9 +44,8 @@ export async function findOrderTotal(tx: Executor, orderId: string): Promise<num
   return row?.totalPrice;
 }
 
-// The dedupe gate, run before any processing. A concurrent copy of the same
-// event waits here on the primary key until the first one commits, then gets
-// no row back. order_id is stored only when the order exists, to keep the FK.
+// Dedupe gate: a concurrent copy of the event waits on the primary key, then
+// gets no row back. order_id stays NULL for an unknown order, so the FK holds.
 export async function recordWebhookEvent(
   tx: Executor,
   values: { eventId: string; eventType: string; payload: unknown; orderId: string; receivedAt: Date },
