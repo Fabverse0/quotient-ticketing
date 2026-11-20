@@ -46,6 +46,7 @@ function must(result, step) {
 const composeEnv = (strategy) => ({
   API_PORT,
   POSTGRES_PORT,
+  QUOTIENT_NETWORK: `${PROJECT}_default`,
   NODE_ENV: "development",
   QUOTA_STRATEGY: strategy,
   NAIVE_RACE_DELAY_MS: strategy === "naive" ? NAIVE_RACE_DELAY_MS : "0",
