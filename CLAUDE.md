@@ -231,7 +231,7 @@ Test:
 
 Lingkungan lokal dan CI:
 - Postgres compose dibuka di port host 5433, karena 5432 sering dipakai Postgres lokal. Di dalam jaringan compose API tetap memakai `postgres:5432`.
-- Compose punya `JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET` default khusus dev supaya `docker compose up` jalan di clone bersih. Jangan dipakai di luar lokal.
+- Compose punya `JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET` default khusus dev supaya `docker compose up` jalan di clone bersih. Jangan dipakai di luar lokal: `loadConfig` menolak awalan `dev-only-` dan `ganti-dengan-` untuk `JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET` kalau `NODE_ENV=production`.
 - Image API multi-stage dan berjalan sebagai user non-root `node`.
 - CI: job `test` (typecheck + Testcontainers) di setiap push dan PR; `build-and-push` ke `ghcr.io/fabverse0/quotient-ticketing` hanya dari push ke `main`, tag `sha-<short>` dan `latest`.
 
