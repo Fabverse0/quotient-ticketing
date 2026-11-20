@@ -12,6 +12,7 @@ import { Reveal } from "../components/Reveal";
 import { SeatMap } from "../components/SeatMap";
 import { useShake } from "../hooks/useShake";
 import { formatDateTime, formatRupiah, kindLabel } from "../lib/format";
+import { serverNow } from "../lib/serverClock";
 
 // Plain polling for now; the realtime module replaces it with a live stream.
 const REFRESH_MS = 10_000;
@@ -198,7 +199,7 @@ function OrdersPanel({ eventId }: { eventId: string }) {
                 </span>
               </span>
               <span className="justify-self-start">
-                <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= Date.now()} />
+                <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= serverNow()} />
               </span>
             </li>
           ))}
