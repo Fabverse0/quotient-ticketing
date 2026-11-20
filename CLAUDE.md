@@ -196,6 +196,7 @@ Frontend pembeli (web/):
 Organizer (API dan web):
 - `GET /organizer/events`: event milik pemanggil beserta counter (`quota`, `sold`, `reserved`, `remaining`), urut `startsAt`. Route `/organizer/events` semuanya khusus organizer.
 - `GET /organizer/events/:id/orders?limit=` (1 sampai 50, default 20, di luar itu 400): pesanan terbaru event itu, `buyerName` saja tanpa email atau id pembeli. Bukan pemilik 403, event tidak ada 404 `EVENT_NOT_FOUND`.
+- `GET /organizer/events/:id/analytics`: `statuses` (kelima status selalu ada, urut state machine, dengan `orders` dan `quantity`, nol kalau kosong) dan `sales` (pesanan PAID urut `paid_at` naik: `at` ISO UTC, `kind`, `quantity`, maksimal 2.000). Pemilik saja (403, 404, 400 seperti route event lain). Dipakai grafik halaman Analitik.
 - `GET /admin/invariants` menerima `?eventId=` (uuid, 400 kalau bukan) yang membatasi pemeriksaan ke satu event dan hanya untuk pemiliknya (403, 404 seperti di atas). Tanpa parameter tetap global.
 - Route web organizer: `/organizer` (event saya), `/organizer/event/baru` (form), `/organizer/event/:id` (dashboard). Navigasi organizer: Event saya, Buat event.
 - Form buat event memvalidasi per kolom di klien (nama, tempat, waktu, harga dan kuota bilangan bulat dalam batas API) dan menganggap waktu selalu WIB.

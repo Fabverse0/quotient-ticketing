@@ -40,5 +40,10 @@ export function organizerEventRoutes(service: EventsService, secret: string) {
     return c.json(await service.recentOrders(id, c.get("auth").userId, limit));
   });
 
+  routes.get("/:id/analytics", async (c) => {
+    const { id } = parseParams(c, eventIdParamSchema);
+    return c.json(await service.analytics(id, c.get("auth").userId));
+  });
+
   return routes;
 }
