@@ -20,7 +20,8 @@ function RowsLoading() {
 // Rows with thin rules, not cards (DESIGN.md).
 export function OrdersPage() {
   const orders = useQuery({ queryKey: ["orders"], queryFn: listOrders });
-  const now = useServerNow(false);
+  // Ticks only while a PENDING row could still run out, so it reads Kedaluwarsa on time.
+  const now = useServerNow(Boolean(orders.data?.some((o) => o.status === "PENDING")));
 
   return (
     <section className="py-12">
