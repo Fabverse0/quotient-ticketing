@@ -30,6 +30,7 @@
   --color-clay: #e8dccf;
   --color-sage-wash: #e3e7da;
   --color-umber-light: #e0b07a;
+  --color-oxblood-wash: #efdedb;
 
   /* WCAG AA for small text: ash (2.1:1) and ochre (3.3:1) fail on canvas, so
      text uses these; ash and ochre stay for lines, borders and large marks. */

@@ -242,7 +242,7 @@ function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }
                 </span>
               </span>
               <span className="justify-self-start">
-                <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= serverNow()} />
+                <OrderStatus tinted status={order.status} expired={new Date(order.expiresAt).getTime() <= serverNow()} />
               </span>
             </li>
           ))}
