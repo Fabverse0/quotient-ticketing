@@ -17,7 +17,6 @@ const ORGANIZER = {
   password: process.env.DEMO_ORGANIZER_PASSWORD ?? "organizer-demo-pass",
 };
 const BUYER_PASSWORD = "pembeli-demo-pass";
-// Accounts printed at the end so the demo can sign in as them.
 const NAMED_BUYERS = ["Ayu Lestari", "Bima Pratama", "Citra Wulandari"];
 
 interface Plan {
