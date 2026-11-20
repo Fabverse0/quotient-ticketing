@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-// A figure on the dark hero card.
 export function HeroStat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="rounded-chip bg-inkblue-deep px-4 py-3">

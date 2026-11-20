@@ -2,7 +2,6 @@ import { formatCount, formatPercent, kindLabel } from "../lib/format";
 import { KIND_STYLE, KINDS } from "../lib/kindStyle";
 import { Ring } from "./Ring";
 
-// Seats sold against the quota, split into Reguler and VIP, with the same numbers as text.
 export function SoldRing({
   quota,
   regular,
