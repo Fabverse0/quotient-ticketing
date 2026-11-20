@@ -14,6 +14,8 @@ interface HubOptions {
   coalesceMs?: number;
   heartbeatMs?: number;
   listenRetryMs?: number;
+  // Unsent bytes a stream may pile up before the client is dropped as too slow.
+  maxBufferedBytes?: number;
 }
 
 export function createRealtimeHub({
@@ -21,6 +23,7 @@ export function createRealtimeHub({
   coalesceMs = 400,
   heartbeatMs = 15_000,
   listenRetryMs = 1000,
+  maxBufferedBytes = 64 * 1024,
 }: HubOptions) {
   const publicClients = new Set<StreamClient>();
   const watchers = new Map<string, Set<StreamClient>>();
@@ -81,6 +84,8 @@ export function createRealtimeHub({
     get listening() {
       return listening;
     },
+
+    maxBufferedBytes,
 
     async start() {
       heartbeat = setInterval(() => {

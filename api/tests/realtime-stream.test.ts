@@ -179,6 +179,35 @@ describe("GET /organizer/events/:id/stream", () => {
   });
 });
 
+describe("slow clients", () => {
+  it("disconnects a stream whose unsent data passes the limit and keeps the ones that read", async () => {
+    const tight = createRealtimeHub({ connectionString: testDb.databaseUrl, coalesceMs: 5, maxBufferedBytes: 1024 });
+    await tight.start();
+    try {
+      const tightApp = createApp({ db: testDb.db, clock: systemClock, auth: testAuthSettings, realtime: tight });
+      const wide = await createTestEvent(app, owner.token, { regular: { price: 0, quota: 100 }, vip: { price: 0, quota: 100 } });
+      const stalled = await tightApp.request("/events/stream");
+      const reading = readSse(await tightApp.request("/events/stream"));
+      await reading.waitFor((m) => m.retry === 3000);
+
+      // About 150 bytes per message: 20 of them are three times the 1 KB limit.
+      for (let i = 0; i < 20; i++) {
+        await testDb.db.execute(sql`UPDATE ticket_types SET reserved = reserved + 1 WHERE id = ${wide.vip.id}`);
+        await sleep(30);
+      }
+      await reading.waitFor((m) => quotaFor(wide.id)(m) && JSON.parse(m.data!).ticketTypes[1].remaining === 80);
+
+      const late = readSse(stalled);
+      await late.waitForEnd();
+      expect(late.messages.filter(quotaFor(wide.id)).length).toBeLessThan(20);
+      expect(reading.ended).toBe(false);
+      await reading.close();
+    } finally {
+      await tight.stop();
+    }
+  });
+});
+
 describe("LISTEN connection", () => {
   it("closes open streams when it drops, then reconnects and streams again", async () => {
     const before = readSse(await app.request("/events/stream"));

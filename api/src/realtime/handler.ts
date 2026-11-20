@@ -1,3 +1,4 @@
+import type { HttpBindings } from "@hono/node-server";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { requireAuth, requireRole, type AuthEnv } from "../modules/auth/middleware.js";
@@ -11,20 +12,41 @@ import { issueStreamTicket, verifyStreamTicket } from "./ticket.js";
 
 const RETRY_MS = 3000;
 
-function openStream(c: Context, subscribe: (client: StreamClient) => () => void) {
+function openStream(c: Context, maxBufferedBytes: number, subscribe: (client: StreamClient) => () => void) {
   return streamSSE(c, async (stream) => {
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => (finish = resolve));
+
+    // node-server stops reading the body while the socket is full, so a write
+    // that has not resolved yet is data the client has not taken.
+    let unsent = 0;
+    const write = (text: string) => {
+      if (stream.aborted) return;
+      const size = Buffer.byteLength(text);
+      unsent += size;
+      if (unsent > maxBufferedBytes) {
+        console.warn(`SSE client fell ${unsent} bytes behind, disconnecting`);
+        // The server waits for a drain that may never come; only the socket going away frees it.
+        (c.env as Partial<HttpBindings> | undefined)?.incoming?.socket.destroy();
+        stream.abort();
+        return;
+      }
+      void stream.write(text).then(() => {
+        unsent -= size;
+      });
+    };
+
     // Subscribed before the first await, so no change slips in between the
     // response headers (the browser's "open") and the subscription.
     const unsubscribe = subscribe({
-      send: (event, data) => void stream.writeSSE({ event, data: JSON.stringify(data) }),
-      ping: () => void stream.write(": ping\n\n"),
+      // JSON.stringify never emits a raw newline, so the data fits on one SSE line.
+      send: (event, data) => write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+      ping: () => write(": ping\n\n"),
       close: finish,
     });
     stream.onAbort(finish);
     try {
-      await stream.write(`retry: ${RETRY_MS}\n\n`);
+      write(`retry: ${RETRY_MS}\n\n`);
       await finished;
     } finally {
       unsubscribe();
@@ -44,7 +66,7 @@ export function realtimeRoutes({ hub, events, secret, clock }: Deps) {
 
   routes.get("/events/stream", (c) => {
     hub.assertAccepting();
-    return openStream(c, (client) => hub.subscribePublic(client));
+    return openStream(c, hub.maxBufferedBytes, (client) => hub.subscribePublic(client));
   });
 
   // EventSource cannot send an Authorization header, so the login token is
@@ -69,7 +91,7 @@ export function realtimeRoutes({ hub, events, secret, clock }: Deps) {
     }
     await events.getForOrganizer(id, ticket.userId);
     hub.assertAccepting();
-    return openStream(c, (client) => hub.subscribeOrganizer(id, client));
+    return openStream(c, hub.maxBufferedBytes, (client) => hub.subscribeOrganizer(id, client));
   });
 
   return routes;
