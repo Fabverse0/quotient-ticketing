@@ -2,7 +2,7 @@
 // source for the Quotient-specific ones.
 const MESSAGES: Record<string, string> = {
   QUOTA_EXHAUSTED: "Kursi baru saja habis. Sisa kuota sudah diperbarui.",
-  BUYER_LIMIT_EXCEEDED: "Kamu sudah memegang 4 tiket untuk event ini.",
+  BUYER_LIMIT_EXCEEDED: "Batas 4 tiket per akun untuk event ini sudah tercapai.",
   ORDER_EXPIRED: "Waktu bayar habis. Kursi sudah dilepas untuk pembeli lain.",
   DATABASE_BUSY: "Sistem sedang ramai. Coba lagi beberapa detik.",
   INVALID_CREDENTIALS: "Email atau password tidak cocok.",
