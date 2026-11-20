@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError, messageFor } from "../api/errors";
 import { checkInvariants, getMyEvent, recentOrders, type InvariantReport, type OrganizerEvent } from "../api/organizer";
@@ -40,7 +40,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
 
   return (
     <section className="py-12">
-      <Link to="/organizer" className="text-small text-quiet">
+      <Link to="/organizer" className="inline-flex min-h-(--size-button) items-center text-small text-quiet">
         <span className="link-underline">Semua event</span>
       </Link>
       <p className="mt-6 text-label uppercase tracking-label text-quiet">Dashboard organizer</p>
@@ -49,7 +49,19 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
         {formatDateTime(event.startsAt)} · {event.venue} · diperbarui tiap 10 detik
       </p>
 
-      <div role="tablist" aria-label="Tipe tiket" className="mt-8 flex gap-6 border-b border-mist">
+      <div
+        role="tablist"
+        aria-label="Tipe tiket"
+        className="mt-8 flex gap-6 border-b border-mist"
+        onKeyDown={(e) => {
+          // Arrow keys move between tabs and focus follows, as the tabs pattern expects.
+          if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+          const count = event.ticketTypes.length;
+          const next = (index + (e.key === "ArrowRight" ? 1 : count - 1)) % count;
+          setIndex(next);
+          e.currentTarget.querySelectorAll<HTMLElement>("[role=tab]")[next]?.focus();
+        }}
+      >
         {event.ticketTypes.map((t, i) => (
           <button
             key={t.id}
@@ -57,6 +69,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
             type="button"
             id={`tab-${t.kind}`}
             aria-selected={i === index}
+            tabIndex={i === index ? 0 : -1}
             aria-controls="tab-panel"
             onClick={() => setIndex(i)}
             className={`-mb-px inline-flex min-h-(--size-button) items-center border-b ${i === index ? "border-ink text-ink" : "border-transparent text-quiet hover:text-ink"}`}
@@ -105,14 +118,15 @@ function Figure({ label, value }: { label: string; value: number }) {
 
 function InvariantPanel({ eventId }: { eventId: string }) {
   const { ref, shake } = useShake<HTMLElement>();
-  const check = useMutation({
-    mutationFn: () => checkInvariants(eventId),
-    onSuccess: (report: InvariantReport) => {
-      if (!report.ok) shake();
-    },
-    onError: shake,
-  });
-  const report = check.data;
+  const check = useMutation({ mutationFn: () => checkInvariants(eventId) });
+  const report: InvariantReport | undefined = check.data;
+  const rejected = check.isError || (report !== undefined && !report.ok);
+
+  // After the render that adds the red border: React rewrites className, which
+  // would cancel a shake started earlier.
+  useEffect(() => {
+    if (rejected) shake();
+  }, [rejected, check.submittedAt, shake]);
 
   return (
     <section

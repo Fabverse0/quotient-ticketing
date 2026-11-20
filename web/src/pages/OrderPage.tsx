@@ -134,7 +134,7 @@ function OrderView({ order }: { order: OrderDetail }) {
         </div>
       )}
 
-      <Link to="/pesanan" className="self-start text-small text-quiet">
+      <Link to="/pesanan" className="inline-flex min-h-(--size-button) items-center self-start text-small text-quiet">
         <span className="link-underline">Semua pesanan</span>
       </Link>
     </section>
