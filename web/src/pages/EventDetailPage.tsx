@@ -8,6 +8,7 @@ import { useSession } from "../auth/session";
 import { Button } from "../components/Button";
 import { DoseSelector } from "../components/DoseSelector";
 import { LiveNumber } from "../components/LiveNumber";
+import { LogoMark } from "../components/Logo";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Reveal } from "../components/Reveal";
 import { SeatMap } from "../components/SeatMap";
@@ -50,6 +51,7 @@ function EventDetail({ event }: { event: PublicEvent }) {
   return (
     <article className="pb-8">
       <header className="-mx-4 bg-carbon px-4 py-14 text-center sm:-mx-8 sm:rounded-ui sm:px-8">
+        <LogoMark className="mx-auto mb-8 size-10 text-canvas" />
         <p className="text-label uppercase tracking-label text-ash">{formatDateTime(event.startsAt)}</p>
         <h1 className="mt-3 font-display text-band uppercase tracking-band text-canvas">{event.title}</h1>
         <p className="mt-2 text-small text-mist">{event.venue}</p>
