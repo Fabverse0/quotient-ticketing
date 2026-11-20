@@ -13,14 +13,14 @@ Langkah-langkahnya bisa juga dijalankan satu per satu terhadap stack yang sudah 
 Membuat satu event (Reguler kuota 100) dan 200 akun pembeli lewat API, lalu menyimpan token mereka ke `tools/load-test/.data/seed.json` (di-gitignore).
 
 ```bash
-API_URL=http://localhost:3000 ORGANIZER_EMAIL=organizer@quotient.local ORGANIZER_PASSWORD=... node tools/load-test/seed.mjs
+API_URL=http://localhost:3000 ORGANIZER_EMAIL=organizer@quotient.local ORGANIZER_PASSWORD=organizer-demo-pass node tools/load-test/seed.mjs
 ```
 
 `BUYERS` dan `QUOTA` bisa diubah lewat env.
 
 ## 2. k6 lewat Docker
 
-200 VU mengirim `POST /orders` (1 tiket) bersamaan. k6 berjalan di jaringan compose dan memanggil API langsung di `http://api:3000`. Untuk stack dev, nama jaringannya `quotient_default`.
+200 VU mengirim `POST /orders` (1 tiket) bersamaan. k6 berjalan di jaringan compose dan memanggil API langsung di `http://api:3000`. Untuk stack dev, nama jaringannya dikunci di `docker-compose.yml` menjadi `quotient_default`, apa pun nama folder clone-nya. `tools/demo.mjs` menimpanya dengan `quotient-demo_default` supaya stack demo tidak berbagi jaringan dengan stack dev.
 
 ```bash
 docker run --rm --network quotient_default \

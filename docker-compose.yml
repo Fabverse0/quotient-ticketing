@@ -60,5 +60,11 @@ services:
       retries: 10
       start_period: 5s
 
+# A fixed name, so the k6 command in tools/load-test/README.md works from any clone folder.
+# Another compose project that shares this file overrides it with QUOTIENT_NETWORK.
+networks:
+  default:
+    name: ${QUOTIENT_NETWORK:-quotient_default}
+
 volumes:
   pgdata:
