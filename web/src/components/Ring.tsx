@@ -34,7 +34,9 @@ export function Ring({
       <svg viewBox="0 0 120 120" role="img" aria-label={label} className="size-full -rotate-90">
         <circle cx="60" cy="60" r={RADIUS} fill="none" strokeWidth="12" className={trackClassName} />
         {segments.map((segment, i) => {
-          const length = total > 0 ? Math.min(segment.value / total, 1) * CIRCUMFERENCE : 0;
+          // Each arc stops at what is left of the circle, so oversold seats never wrap around.
+          const room = CIRCUMFERENCE - used;
+          const length = total > 0 ? Math.min((segment.value / total) * CIRCUMFERENCE, room) : 0;
           const offset = used;
           used += length;
           return (
