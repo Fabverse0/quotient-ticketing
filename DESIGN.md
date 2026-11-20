@@ -100,7 +100,7 @@ Logo Quotient di kiri: simbol, dan mulai lebar `sm` ditambah tulisan QUOTIENT. D
 - Setiap tile: kartu wall dengan sampul buram kecil di tengah dan bayangan hangat. Di bawah, satu baris: nama event di kiri, sisa kursi di kanan dengan warna status (slate kalau masih banyak, oker teks `#8c6221` kalau tinggal sedikit, oxblood kalau habis).
 
 ### Detail event dan pemesanan
-- Pita gelap karbon di atas: label kecil, nama event Marcellus kapital besar, tanggal dan tempat.
+- Pita gelap karbon di atas: simbol logo kecil di tengah (bagian cincin berwarna canvas, ekor tetap umber), label kecil, nama event Marcellus kapital besar, tanggal dan tempat.
 - Dua kolom: kiri label berbingkai ganda berisi sisa kursi (Marcellus besar) dan peta kursi dengan keterangan; kanan daftar harga bergaris titik, pemilih dosis, tombol "Pesan 2 tiket · Rp150.000", dan keterangan "Kursi ditahan selama 15 menit. Maksimal empat tiket untuk setiap akun."
 - Tipe yang habis tampil abu abu dengan keterangan oxblood "Habis".
 
