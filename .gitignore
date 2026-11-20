@@ -35,3 +35,6 @@ tools/load-test/.data/
 
 # Playwright MCP screenshots and snapshots
 .playwright-mcp/
+
+# Logo design skill: the 1,400-logo library is third-party trademarks, study only, not part of this repo
+.claude/skills/logo-design/assets/library/
