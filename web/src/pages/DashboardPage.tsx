@@ -58,7 +58,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
             </p>
             <LiveStatus polling={polling} stopped={Boolean(stoppedBy)} />
           </div>
-          <h1 className="font-display text-title uppercase tracking-band text-balance break-words text-ink sm:text-band">
+          <h1 className="font-bold text-title uppercase tracking-band text-balance break-words text-ink sm:text-band">
             {event.title}
           </h1>
           <dl className="grid gap-4 sm:grid-cols-3 sm:gap-8">
@@ -141,7 +141,7 @@ function Figure({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <dt className="text-label uppercase tracking-label text-quiet">{label}</dt>
-      <dd className="mt-1 font-display text-figure leading-none text-ink">
+      <dd className="mt-1 text-figure font-bold leading-none tabular-nums text-ink">
         <LiveNumber value={value} />
       </dd>
     </div>
@@ -157,7 +157,7 @@ function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }
 
   return (
     <section aria-labelledby="orders-title" className="flex flex-col gap-4 rounded-ui bg-wall p-6">
-      <h2 id="orders-title" className="font-display text-lead text-ink">
+      <h2 id="orders-title" className="text-lead font-bold text-ink">
         Pesanan terbaru
       </h2>
       {orders.isPending && <div role="status" aria-label="Memuat" className="h-32 animate-pulse rounded-ui bg-canvas" />}

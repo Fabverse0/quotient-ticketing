@@ -37,7 +37,7 @@ function Verdict({ report, at }: { report: InvariantReport; at: number }) {
         </span>
       </span>
       <div>
-        <p className={`font-display text-lead ${report.ok ? "text-sage" : "text-oxblood"}`}>
+        <p className={`text-lead font-bold ${report.ok ? "text-sage" : "text-oxblood"}`}>
           {report.ok ? "Semua cocok" : `${failed} pemeriksaan dilanggar`}
         </p>
         <p className="text-caption text-quiet">
@@ -99,7 +99,7 @@ export function InvariantPanel({ eventId }: { eventId: string }) {
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h2 id="invariant-title" className="font-display text-lead text-ink">
+          <h2 id="invariant-title" className="text-lead font-bold text-ink">
             Pemeriksaan invariant
           </h2>
           <p className="max-w-(--width-lead) text-small text-quiet">

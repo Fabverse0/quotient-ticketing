@@ -65,9 +65,9 @@ Skala:
 - Paragraf pembuka: 20px, warna graphite, rata tengah, lebar maksimal sekitar 460px
 - Judul halaman: Marcellus 28 sampai 30px
 - Judul pita gelap: Marcellus 40px, kapital, `letter-spacing: 0.06em`
-- Angka dashboard: Marcellus 44px
+- Angka dashboard: Hanken Grotesk 700, 44px, `tabular-nums`
 
-Bold (700) hanya untuk harga dan tombol utama. Tulisan QUOTIENT di logo adalah pengecualian: Marcellus kapital yang diubah menjadi path dan ditebalkan, bukan teks, lihat bagian Logo. Semua angka memakai `font-variant-numeric: tabular-nums`.
+Bold (700) hanya untuk harga dan tombol utama, dan untuk dashboard organizer: angka besar, nama event, dan judul panel memakai Hanken Grotesk 700 supaya terbaca tegas sebagai data, bukan Marcellus. Tulisan QUOTIENT di logo adalah pengecualian: Marcellus kapital yang diubah menjadi path dan ditebalkan, bukan teks, lihat bagian Logo. Semua angka memakai `font-variant-numeric: tabular-nums`.
 
 ## Bentuk dan ruang
 
@@ -116,7 +116,7 @@ Daftar baris dengan garis tipis, bukan kartu. Nama event, jumlah tiket, label st
 ### Dashboard organizer
 - Judul dalam bingkai garis ganda: label kecil "Dashboard organizer · No. FA4628" (enam karakter pertama ID event), status di kanan atas, nama event Marcellus kapital berspasi lebar (sama dengan pita detail event), lalu tiga kolom bergaris tipis: Waktu, Tempat, dan Kapasitas (total kursi dan per tipe). Status memakai satu titik yang menandai keadaan nyata: sage "Diperbarui langsung", oker saat polling 10 detik, oxblood saat pembaruan berhenti. Titik tidak berdenyut dan tidak bercahaya.
 - Tab tipe tiket dengan garis bawah tipis.
-- Panel wall berisi empat angka Marcellus besar (kuota, terjual, ditahan, sisa) dan peta kursi besar dengan keterangan.
+- Panel wall berisi empat angka besar Hanken Grotesk tebal (kuota, terjual, ditahan, sisa) dan peta kursi besar dengan keterangan.
 - Panel pemeriksaan invariant: judul, satu kalimat penjelasan, dan tombol "Jalankan pemeriksaan" (tetap manual). Enam pemeriksaan selalu terlihat, bernomor 01 sampai 06, dengan kalimat biasa dan rumusnya di bawahnya (misalnya `reserved = jumlah quantity pesanan PENDING`), status "Belum diperiksa" sebelum dijalankan. Sesudahnya muncul ringkasan bercincin ganda: sage "Semua cocok" atau oxblood "N pemeriksaan dilanggar" beserta jumlah yang lulus dan waktu periksa. Setiap baris menampilkan status dengan ikon dan teks (bukan hanya warna) dan angka yang dibandingkan lengkap dengan namanya, misalnya `ditahan 7 = pesanan menunggu 7`. Yang dilanggar berwarna oxblood dan merinci tipe tiketnya, dan panel mendapat garis oxblood.
 - Panel pesanan terbaru: pembeli, jumlah, label status, waktu.
 - Tidak ada tile galeri dan sampul di dashboard. Organizer membaca angka.
