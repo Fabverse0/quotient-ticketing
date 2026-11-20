@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { messageFor } from "../api/errors";
 import type { TicketKind } from "../api/events";
@@ -9,11 +8,13 @@ import { Bar } from "../components/Bar";
 import { CountUp } from "../components/CountUp";
 import { LiveStatus } from "../components/LiveStatus";
 import { PageMessage } from "../components/PageState";
-import { Ring } from "../components/Ring";
+import { HeroStat } from "../components/HeroStat";
+import { SoldRing } from "../components/SoldRing";
 import { POLL_MS } from "../hooks/useLiveStream";
 import { useOverviewLive } from "../hooks/useOverviewLive";
 import { formatCount, formatDateTime, formatDayMonth, formatPercent, formatRupiah, kindLabel } from "../lib/format";
 import { summarize, type Overview, type Totals } from "../lib/overview";
+import { KIND_STYLE, KINDS } from "../lib/kindStyle";
 import { serverNow } from "../lib/serverClock";
 import { stagger } from "../lib/stagger";
 
@@ -29,13 +30,6 @@ function greeting(now: number) {
 }
 
 const rupiah = (n: number) => formatRupiah(Math.round(n));
-
-// Reguler is always the ink blue, VIP always the umber, wherever they are compared.
-const KIND_STYLE: Record<TicketKind, { fill: string; track: string; tint: string; swatch: string }> = {
-  REGULAR: { fill: "bg-inkblue", track: "bg-blue-wash", tint: "bg-blue-wash", swatch: "bg-canvas" },
-  VIP: { fill: "bg-umber", track: "bg-clay", tint: "bg-clay", swatch: "bg-umber-light" },
-};
-const KINDS: TicketKind[] = ["REGULAR", "VIP"];
 
 export function OverviewPage() {
   const { user } = useSession();
@@ -131,40 +125,8 @@ function Hero({ overview }: { overview: Overview }) {
         </dl>
       </div>
 
-      <div className="flex flex-wrap items-center gap-6">
-        <Ring
-          className="size-44"
-          total={quota}
-          trackClassName="stroke-inkblue-deep"
-          label={`${formatCount(sold)} dari ${formatCount(quota)} kursi terjual: ${formatCount(byKind.REGULAR.sold)} Reguler dan ${formatCount(byKind.VIP.sold)} VIP`}
-          segments={[
-            { value: byKind.REGULAR.sold, className: "stroke-canvas" },
-            { value: byKind.VIP.sold, className: "stroke-umber-light" },
-          ]}
-        >
-          <span className="text-title font-bold">{formatPercent(ratio)}</span>
-          <span className="text-caption text-blue-mist">terisi</span>
-        </Ring>
-        <ul className="flex flex-col gap-2 text-small">
-          {KINDS.map((kind) => (
-            <li key={kind} className="flex items-center gap-2">
-              <span aria-hidden="true" className={`size-3 rounded-full ${KIND_STYLE[kind].swatch}`} />
-              <span className="text-blue-mist">{kindLabel(kind)}</span>
-              <span className="font-bold">{formatCount(byKind[kind].sold)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <SoldRing className="size-44" quota={quota} regular={byKind.REGULAR.sold} vip={byKind.VIP.sold} />
     </section>
-  );
-}
-
-function HeroStat({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="rounded-chip bg-inkblue-deep px-4 py-3">
-      <dt className="text-caption text-blue-mist">{label}</dt>
-      <dd className="mt-1 text-lead font-bold tabular-nums">{children}</dd>
-    </div>
   );
 }
 

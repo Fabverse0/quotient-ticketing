@@ -1,21 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { messageFor } from "../api/errors";
-import type { TicketKind } from "../api/events";
 import { listMyEvents } from "../api/organizer";
 import { Bar } from "../components/Bar";
 import { PageMessage } from "../components/PageState";
 import { formatCount, formatDayMonth, formatDateTime, kindLabel } from "../lib/format";
+import { KIND_STYLE, KINDS } from "../lib/kindStyle";
 import { stagger } from "../lib/stagger";
 
 const buttonLink =
   "soft inline-flex h-(--size-button) items-center justify-center rounded-chip bg-ink px-5 font-bold text-canvas " +
   "hover:bg-ink-deep";
-
-const KINDS: Array<{ kind: TicketKind; fill: string; track: string }> = [
-  { kind: "REGULAR", fill: "bg-inkblue", track: "bg-blue-wash" },
-  { kind: "VIP", fill: "bg-umber", track: "bg-clay" },
-];
 
 export function OrganizerEventsPage() {
   const events = useQuery({ queryKey: ["organizer-events"], queryFn: listMyEvents });
@@ -70,13 +65,13 @@ export function OrganizerEventsPage() {
                       </span>
                     </span>
                   </span>
-                  {KINDS.map(({ kind, fill, track }) => {
+                  {KINDS.map((kind) => {
                     const type = event.ticketTypes.find((t) => t.kind === kind);
                     if (!type) return null;
                     return (
                       <span key={kind} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 text-caption">
                         <span className="text-graphite">{kindLabel(kind)}</span>
-                        <Bar value={type.sold} max={type.quota} label={`${kindLabel(kind)}, ${event.title}`} fillClassName={fill} trackClassName={track} />
+                        <Bar value={type.sold} max={type.quota} label={`${kindLabel(kind)}, ${event.title}`} fillClassName={KIND_STYLE[kind].fill} trackClassName={KIND_STYLE[kind].track} />
                         <span className="min-w-20 text-right tabular-nums text-ink">
                           {formatCount(type.sold)} / {formatCount(type.quota)}
                         </span>

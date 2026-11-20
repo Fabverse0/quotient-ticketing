@@ -75,6 +75,8 @@
   --width-form: 380px;
   --blur-cover: 7px;
   --size-qr: 128px;
+  /* The space around the organizer shell; the rail height and the panel height derive from it. */
+  --shell-gutter: 0.75rem;
   --size-seat: 10px;
   --size-seat-large: 14px;
   --size-dose: 44px;
