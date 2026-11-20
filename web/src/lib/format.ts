@@ -12,7 +12,6 @@ const time = new Intl.DateTimeFormat("id-ID", { timeZone: ZONE, hour: "2-digit",
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 
 export const formatDateTime = (iso: string) => `${dateTime.format(new Date(iso))} · ${time.format(new Date(iso))} WIB`;
-export const formatDate = (iso: string) => dateTime.format(new Date(iso));
 export const formatRupiah = (amount: number) => rupiah.format(amount).replace(/\s/g, "");
 export const formatCount = (n: number) => n.toLocaleString("id-ID");
 export const kindLabel = (kind: "REGULAR" | "VIP") => (kind === "REGULAR" ? "Reguler" : "VIP");
