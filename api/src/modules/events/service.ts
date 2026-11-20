@@ -1,6 +1,13 @@
 import type { Database } from "../../shared/db/client.js";
 import { AppError } from "../../shared/errors.js";
-import { findEventWithTypes, insertEvent, insertTicketTypes, listEventsWithTypes } from "./queries.js";
+import {
+  findEventWithTypes,
+  insertEvent,
+  insertTicketTypes,
+  listEventsByOrganizer,
+  listEventsWithTypes,
+  listRecentOrdersForEvent,
+} from "./queries.js";
 import type { CreateEventInput } from "./schemas.js";
 import { toOrganizerEvent, toPublicEvent } from "./views.js";
 
@@ -26,6 +33,17 @@ export function createEventsService({ db }: { db: Database }) {
         throw new AppError(404, "EVENT_NOT_FOUND", "Event tidak ditemukan");
       }
       return toPublicEvent(found.event, found.types);
+    },
+
+    async listForOrganizer(organizerId: string) {
+      const rows = await listEventsByOrganizer(db, organizerId);
+      return rows.map(({ event, types }) => toOrganizerEvent(event, types));
+    },
+
+    async recentOrders(id: string, organizerId: string, limit: number) {
+      await this.getForOrganizer(id, organizerId);
+      const rows = await listRecentOrdersForEvent(db, id, limit);
+      return rows.map(({ kind, ...order }) => ({ ...order, ticketType: { kind } }));
     },
 
     async getForOrganizer(id: string, organizerId: string) {

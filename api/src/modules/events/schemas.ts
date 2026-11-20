@@ -25,3 +25,7 @@ export const createEventSchema = z.object({
 export type CreateEventInput = z.output<typeof createEventSchema>;
 
 export const eventIdParamSchema = z.object({ id: z.uuid() });
+
+export const recentOrdersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});

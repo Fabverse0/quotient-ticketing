@@ -1,5 +1,6 @@
 import type { Database } from "../../shared/db/client.js";
-import { tallyActiveTicketsPerBuyer, tallyTicketTypes, type TicketTypeTally } from "./queries.js";
+import { AppError } from "../../shared/errors.js";
+import { findEventOrganizer, tallyActiveTicketsPerBuyer, tallyTicketTypes, type TicketTypeTally } from "./queries.js";
 
 const BUYER_TICKET_LIMIT = 4;
 
@@ -95,11 +96,11 @@ export function createInvariantsService({ db }: { db: Database }) {
   return {
     // One read-only snapshot, so a write committing mid-check cannot show up in
     // one tally and not the next as a false violation.
-    async check(): Promise<InvariantReport> {
+    async check(eventId?: string): Promise<InvariantReport> {
       const { rows, buyers } = await db.transaction(
         async (tx) => ({
-          rows: await tallyTicketTypes(tx),
-          buyers: await tallyActiveTicketsPerBuyer(tx, BUYER_TICKET_LIMIT),
+          rows: await tallyTicketTypes(tx, eventId),
+          buyers: await tallyActiveTicketsPerBuyer(tx, BUYER_TICKET_LIMIT, eventId),
         }),
         { isolationLevel: "repeatable read", accessMode: "read only" },
       );
@@ -117,6 +118,14 @@ export function createInvariantsService({ db }: { db: Database }) {
         })),
       });
       return { ok: checks.every((c) => c.ok), checks };
+    },
+
+    // Scoped to one event, and only its owner may run it (403, like the event itself).
+    async checkEvent(eventId: string, organizerId: string): Promise<InvariantReport> {
+      const owner = await findEventOrganizer(db, eventId);
+      if (!owner) throw new AppError(404, "EVENT_NOT_FOUND", "Event tidak ditemukan");
+      if (owner !== organizerId) throw new AppError(403, "FORBIDDEN", "Anda bukan pemilik event ini");
+      return this.check(eventId);
     },
   };
 }
