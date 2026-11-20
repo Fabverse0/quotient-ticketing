@@ -5,8 +5,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-quotient}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quotient}
       POSTGRES_DB: ${POSTGRES_DB:-quotient}
+    # Loopback only: the dev credentials are not meant to be reachable from the network.
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,7 +39,7 @@ services:
       ORGANIZER_EMAIL: ${ORGANIZER_EMAIL:-organizer@quotient.local}
       ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-organizer-demo-pass}
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "127.0.0.1:${API_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 5s
