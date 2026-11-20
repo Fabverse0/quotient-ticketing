@@ -1,108 +1,88 @@
-import { useMounted } from "../hooks/useMounted";
 import type { Sale } from "../api/organizer";
-import { formatCount } from "../lib/format";
+import { useMounted } from "../hooks/useMounted";
+import { formatCount, kindLabel } from "../lib/format";
+import { KIND_STYLE, KINDS } from "../lib/kindStyle";
 
-const WIDTH = 600;
-const HEIGHT = 220;
-const PAD = { top: 12, right: 12, bottom: 8, left: 12 };
-
-const KINDS = [
-  { kind: "REGULAR", label: "Reguler", stroke: "stroke-inkblue", dot: "fill-inkblue", swatch: "bg-inkblue" },
-  { kind: "VIP", label: "VIP", stroke: "stroke-umber", dot: "fill-umber", swatch: "bg-umber" },
-] as const;
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const STEPS = [MINUTE, 5 * MINUTE, 15 * MINUTE, 30 * MINUTE, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 7 * DAY];
+const TARGET_BARS = 8;
 
 const day = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short" });
 const clock = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" });
-const HOUR_MS = 60 * 60 * 1000;
 
-// Short spans read as clock times, long ones as dates.
-const label = (ms: number, spanMs: number) => (spanMs <= 24 * HOUR_MS ? `${clock.format(ms)} WIB` : day.format(ms));
+// Clock times for steps under a day, dates for longer ones.
+const label = (ms: number, step: number) => (step < DAY ? clock.format(ms) : day.format(ms));
 
-// Cumulative seats sold, one step line per ticket type, drawn in from the left.
-// The caption and legend carry the same numbers as the picture.
+// Seats sold in each period, Reguler and VIP side by side. The period is the smallest
+// step that keeps the chart near eight bars. Every bar carries its number, so nothing
+// has to be read off the axis.
 export function SalesChart({ sales }: { sales: Sale[] }) {
   const mounted = useMounted();
   const times = sales.map((s) => new Date(s.at).getTime());
-  const start = times[0]!;
-  // One instant has no width; give it a minute so the line has somewhere to go.
-  const end = Math.max(times.at(-1)!, start + 60_000);
-  const span = end - start;
+  const span = times.at(-1)! - times[0]!;
+  const step = STEPS.find((s) => span / s < TARGET_BARS) ?? STEPS.at(-1)!;
+  const first = Math.floor(times[0]! / step) * step;
+  const count = Math.floor((times.at(-1)! - first) / step) + 1;
 
-  const lines = KINDS.map((k) => {
-    let running = 0;
-    const steps = sales
-      .filter((s) => s.kind === k.kind)
-      .map((s) => ({ t: new Date(s.at).getTime(), value: (running += s.quantity) }));
-    return { ...k, steps };
+  const buckets = Array.from({ length: count }, (_, i) => ({ start: first + i * step, REGULAR: 0, VIP: 0 }));
+  sales.forEach((sale, i) => {
+    buckets[Math.floor((times[i]! - first) / step)]![sale.kind] += sale.quantity;
   });
-  const totals = Object.fromEntries(lines.map((l) => [l.kind, l.steps.at(-1)?.value ?? 0])) as Record<
-    (typeof KINDS)[number]["kind"],
-    number
-  >;
-  const peak = Math.max(1, ...lines.map((l) => l.steps.at(-1)?.value ?? 0));
+  const peak = Math.max(1, ...buckets.flatMap((b) => [b.REGULAR, b.VIP]));
+  const totals = { REGULAR: 0, VIP: 0 };
+  for (const b of buckets) {
+    totals.REGULAR += b.REGULAR;
+    totals.VIP += b.VIP;
+  }
 
-  const x = (t: number) => PAD.left + ((t - start) / span) * (WIDTH - PAD.left - PAD.right);
-  const y = (v: number) => HEIGHT - PAD.bottom - (v / peak) * (HEIGHT - PAD.top - PAD.bottom);
-
-  // A step after each sale; the last level runs on to the end of the time range.
-  const path = (steps: { t: number; value: number }[]) => {
-    if (steps.length === 0) return "";
-    let d = `M${x(start).toFixed(1)} ${y(0).toFixed(1)}`;
-    for (const step of steps) d += ` H${x(step.t).toFixed(1)} V${y(step.value).toFixed(1)}`;
-    return `${d} H${x(end).toFixed(1)}`;
-  };
-
-  const summary = `Tiket terjual dari ${label(start, span)} sampai ${label(end, span)}: ${formatCount(totals.REGULAR)} Reguler dan ${formatCount(totals.VIP)} VIP`;
+  const unit = step < HOUR ? `${step / MINUTE} menit` : step < DAY ? `${step / HOUR} jam` : `${step / DAY} hari`;
+  const summary = `Tiket terjual tiap ${unit}: ${formatCount(totals.REGULAR)} Reguler dan ${formatCount(totals.VIP)} VIP`;
 
   return (
-    <figure className="flex flex-col gap-3">
-      <div className="relative">
-        <span className="absolute left-0 top-0 text-caption text-graphite tabular-nums">{formatCount(peak)} tiket</span>
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={summary} className="mt-5 h-auto w-full">
-          {[0, 0.5, 1].map((f) => (
-            <line
-              key={f}
-              x1={PAD.left}
-              x2={WIDTH - PAD.right}
-              y1={y(peak * f)}
-              y2={y(peak * f)}
-              className="stroke-mist"
-              strokeWidth="1"
-              strokeDasharray={f === 0 ? undefined : "3 5"}
-            />
-          ))}
-          {lines.map((line) =>
-            line.steps.length === 0 ? null : (
-              <g key={line.kind}>
-                <path
-                  d={path(line.steps)}
-                  pathLength={1}
-                  fill="none"
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                  strokeDasharray="1"
-                  strokeDashoffset={mounted ? 0 : 1}
-                  className={`line-draw ${line.stroke}`}
-                />
-                <circle cx={x(end)} cy={y(line.steps.at(-1)!.value)} r="4.5" className={`${line.dot} soft`} opacity={mounted ? 1 : 0} />
-              </g>
-            ),
-          )}
-        </svg>
-      </div>
-      <div className="flex justify-between text-caption text-graphite">
-        <span>{label(start, span)}</span>
-        <span>{label(end, span)}</span>
+    <figure className="flex flex-col gap-4">
+      <div role="img" aria-label={summary} className="flex gap-3">
+        <div className="flex h-48 flex-col justify-between pb-0 text-caption tabular-nums text-graphite" aria-hidden="true">
+          <span>{formatCount(peak)}</span>
+          <span>0</span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="relative flex h-48 items-end gap-2 border-b border-mist">
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 border-t border-dashed border-mist" />
+            {buckets.map((b) => (
+              <div key={b.start} className="flex h-full min-w-0 flex-1 items-end justify-center gap-1">
+                {KINDS.map((kind) => (
+                  <div key={kind} className="relative flex h-full w-full max-w-8 flex-col justify-end">
+                    {b[kind] > 0 && (
+                      <span className="mb-1 text-center text-caption font-bold tabular-nums text-ink">{formatCount(b[kind])}</span>
+                    )}
+                    <div
+                      className={`grow-y w-full rounded-t-chip ${KIND_STYLE[kind].fill}`}
+                      style={{ height: `${(b[kind] / peak) * 85}%`, transform: `scaleY(${mounted ? 1 : 0})` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 text-caption tabular-nums text-graphite" aria-hidden="true">
+            {buckets.map((b) => (
+              <span key={b.start} className="min-w-0 flex-1 text-center">
+                {label(b.start, step)}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
       <figcaption className="flex flex-wrap gap-x-5 gap-y-1 text-small text-ink">
-        {KINDS.map((k) => (
-          <span key={k.kind} className="flex items-center gap-2">
-            <span aria-hidden="true" className={`h-1 w-5 rounded-full ${k.swatch}`} />
-            {k.label} <span className="font-bold tabular-nums">{formatCount(totals[k.kind])}</span>
+        {KINDS.map((kind) => (
+          <span key={kind} className="flex items-center gap-2">
+            <span aria-hidden="true" className={`size-3 rounded-sm ${KIND_STYLE[kind].fill}`} />
+            {kindLabel(kind)} <span className="font-bold tabular-nums">{formatCount(totals[kind])}</span>
           </span>
         ))}
+        <span className="text-graphite">per {unit}</span>
       </figcaption>
     </figure>
   );
