@@ -28,15 +28,17 @@ export function SalesChart({ sales }: { sales: Sale[] }) {
   const end = Math.max(times.at(-1)!, start + 60_000);
   const span = end - start;
 
-  const totals = { REGULAR: 0, VIP: 0 };
   const lines = KINDS.map((k) => {
     let running = 0;
     const steps = sales
       .filter((s) => s.kind === k.kind)
       .map((s) => ({ t: new Date(s.at).getTime(), value: (running += s.quantity) }));
-    totals[k.kind] = running;
     return { ...k, steps };
   });
+  const totals = Object.fromEntries(lines.map((l) => [l.kind, l.steps.at(-1)?.value ?? 0])) as Record<
+    (typeof KINDS)[number]["kind"],
+    number
+  >;
   const peak = Math.max(1, ...lines.map((l) => l.steps.at(-1)?.value ?? 0));
 
   const x = (t: number) => PAD.left + ((t - start) / span) * (WIDTH - PAD.left - PAD.right);
