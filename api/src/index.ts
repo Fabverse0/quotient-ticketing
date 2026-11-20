@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { startSweeper, sweepExpiredOrders } from "./jobs/sweeper.js";
 import { seedOrganizer } from "./modules/auth/seed.js";
+import { createRealtimeHub } from "./realtime/hub.js";
 import { systemClock } from "./shared/clock.js";
 import { loadConfig } from "./shared/config.js";
 import { createDatabase } from "./shared/db/client.js";
@@ -13,6 +14,9 @@ if (config.organizer) {
   console.log(`Organizer account ${config.organizer.email}: ${result}`);
 }
 
+const realtime = createRealtimeHub({ db, connectionString: config.databaseUrl });
+await realtime.start();
+
 const app = createApp({
   db,
   clock: systemClock,
@@ -21,6 +25,7 @@ const app = createApp({
   naiveRaceDelayMs: config.naiveRaceDelayMs,
   simulatedPaymentEnabled: config.simulatedPaymentEnabled,
   paymentWebhookSecret: config.paymentWebhookSecret,
+  realtime,
 });
 if (config.quotaStrategy === "naive") {
   console.warn("QUOTA_STRATEGY=naive: quota reservation is deliberately unsafe and can oversell");
@@ -40,8 +45,10 @@ async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal} received, shutting down`);
-  // Before server.close, which can wait a long time on open connections.
+  // Before server.close, which waits for open connections: an SSE stream would
+  // otherwise keep the process alive for as long as the browser stays.
   await sweeper?.stop();
+  await realtime.stop();
   server.close(async (err) => {
     await close();
     process.exit(err ? 1 : 0);
