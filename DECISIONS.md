@@ -197,6 +197,8 @@ Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan
 
 **Trade-off.** Tiket tetap tercatat di log akses, tapi hanya berlaku 60 detik dan hanya untuk satu event. Karena setiap sambung ulang butuh URL baru, sambung ulang di frontend tetap dibuat sendiri, bukan diserahkan ke `EventSource`. Yang tetap didapat dari `EventSource` adalah parsing stream dan event bernama.
 
+**Error yang tidak dicoba ulang.** Kalau request tiket menjawab 401, 403, atau 404, frontend berhenti: tidak menyambung ulang dan tidak polling, karena mencoba lagi tidak akan mengubah jawabannya. Dashboard menulis "pembaruan langsung berhenti" dan menampilkan alasannya, misalnya "Angka di halaman ini tidak diperbarui lagi. Event ini tidak ditemukan." Untuk 401, sesi berakhir seperti di halaman lain. Error lain (jaringan, 503) tetap dicoba ulang tiap 3 detik. `EventSource` tidak pernah memberi tahu status HTTP, jadi error permanen hanya bisa dikenali dari request tiket. Karena request itu menjalankan pemeriksaan yang sama tepat sebelum stream dibuka, kasus yang ditangkap sama. Stream publik tidak punya request tiket, jadi semua error-nya tetap dicoba ulang.
+
 ### 9b. Bentuk stream
 
 **Pilihan.**
@@ -224,6 +226,8 @@ Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan
 **Temuan saat verifikasi.** Awalnya counter dibaca lewat pool. Saat k6 mengirim 200 pesanan, kesepuluh koneksi pool terpakai request pesanan, sehingga bacaan counter ikut antre sampai burst hampir selesai: dashboard hanya bergerak 0, 83, lalu 100. Bacaan counter dipindah ke koneksi LISTEN itu sendiri, dan run berikutnya bergerak 16, 35, 65, 100 dalam sekitar satu detik.
 
 **Saat koneksi LISTEN putus.** Semua stream yang terbuka ditutup, dan stream baru ditolak 503 sampai koneksi tersambung lagi. Notifikasi selama putus hilang, jadi stream yang dibiarkan terbuka akan menampilkan angka lama tanpa tanda apa pun. Setelah ditutup, browser menyambung ulang dan memuat ulang datanya, atau beralih ke polling kalau putusnya lebih dari 10 detik.
+
+**Klien yang terlalu lambat.** Server tidak menunggu klien yang berhenti membaca. Setiap stream menghitung byte yang sudah ditulis tapi belum diambil. Kalau jumlahnya melewati 64 KB (sekitar 400 pesan kuota), socket-nya diputus dan klien dilepas dari hub. Browser yang masih hidup akan menyambung ulang dan memuat ulang datanya. Hitungan ini bisa dipercaya karena node-server berhenti membaca body selama socket penuh. Menutup stream saja tidak cukup, karena server masih menunggu socket kosong lagi, jadi socket-nya harus dihancurkan. Diuji dengan socket mentah yang tidak pernah membaca: tanpa `socket.destroy()` koneksi tetap dipegang server, dengan `socket.destroy()` koneksi dilepas. Batas itu baru mulai terhitung setelah buffer socket di OS dan Node penuh, jadi klien yang macet sempat menerima lebih dari 64 KB sebelum diputus.
 
 **Trade-off.** Setiap instance membaca counter sendiri, jadi dengan dua replika satu perubahan berarti dua bacaan. Kalau bacaan counter gagal, kiriman untuk jendela itu hilang sampai perubahan berikutnya.
 
