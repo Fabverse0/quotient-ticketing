@@ -113,16 +113,21 @@ export async function tallyOrdersByStatus(db: Executor, eventId: string) {
   }));
 }
 
-// Seats sold per paid order, oldest first, for the sales-over-time chart.
+// Seats sold per paid order, oldest first, for the sales-over-time chart. Past the
+// limit the newest orders are kept, so the chart never stops short of the latest sale.
 export async function listPaidSales(db: Executor, eventId: string, limit: number) {
   // Raw SQL returns timestamps as Postgres text, so the ISO string is built here.
   const { rows } = await db.execute<{ at: string; kind: "REGULAR" | "VIP"; quantity: number }>(sql`
-    SELECT to_char(o.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "at", tt.kind, o.quantity
-    FROM orders o
-    JOIN ticket_types tt ON tt.id = o.ticket_type_id
-    WHERE o.event_id = ${eventId} AND o.status = 'PAID'
-    ORDER BY o.paid_at, o.id
-    LIMIT ${limit}
+    SELECT "at", kind, quantity FROM (
+      SELECT o.paid_at, o.id, tt.kind, o.quantity,
+             to_char(o.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "at"
+      FROM orders o
+      JOIN ticket_types tt ON tt.id = o.ticket_type_id
+      WHERE o.event_id = ${eventId} AND o.status = 'PAID'
+      ORDER BY o.paid_at DESC, o.id DESC
+      LIMIT ${limit}
+    ) newest
+    ORDER BY paid_at, id
   `);
   return rows;
 }
