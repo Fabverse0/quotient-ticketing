@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json vite.config.ts index.html ./
 COPY src ./src
+COPY public ./public
 RUN npm run build
 
 # Unprivileged image: nginx runs as a non-root user and listens on 8080.
