@@ -3,9 +3,12 @@ import { Link } from "react-router";
 import { listEvents, seatsLeft, type PublicEvent } from "../api/events";
 import { messageFor } from "../api/errors";
 import { Cover } from "../components/Cover";
+import { LiveNumber } from "../components/LiveNumber";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Reveal } from "../components/Reveal";
-import { formatCount, formatDateTime } from "../lib/format";
+import { POLL_MS } from "../hooks/useLiveStream";
+import { usePublicQuota } from "../hooks/usePublicQuota";
+import { formatDateTime } from "../lib/format";
 
 // Fewer than 15 seats left reads as "tinggal sedikit" (DESIGN.md).
 export const FEW_SEATS = 15;
@@ -13,7 +16,11 @@ export const FEW_SEATS = 15;
 export function SeatsLeft({ left, className = "" }: { left: number; className?: string }) {
   if (left === 0) return <span className={`text-oxblood ${className}`}>Habis</span>;
   const tone = left < FEW_SEATS ? "text-ochre-text" : "text-quiet";
-  return <span className={`${tone} ${className}`}>{formatCount(left)} kursi</span>;
+  return (
+    <span className={`${tone} ${className}`}>
+      <LiveNumber value={left} /> kursi
+    </span>
+  );
 }
 
 function EventTile({ event }: { event: PublicEvent }) {
@@ -46,7 +53,8 @@ function EventTile({ event }: { event: PublicEvent }) {
 }
 
 export function EventsPage() {
-  const events = useQuery({ queryKey: ["events"], queryFn: listEvents });
+  const polling = usePublicQuota();
+  const events = useQuery({ queryKey: ["events"], queryFn: listEvents, refetchInterval: polling ? POLL_MS : false });
 
   return (
     <>
