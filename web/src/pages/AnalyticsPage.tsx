@@ -92,7 +92,7 @@ function Analytics({ event }: { event: OrganizerEvent }) {
       <Trends eventId={event.id} polling={polling} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <InvariantPanel eventId={event.id} />
+        <InvariantPanel key={event.id} eventId={event.id} />
         <OrdersPanel eventId={event.id} polling={polling} />
       </div>
     </div>
