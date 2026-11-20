@@ -29,10 +29,10 @@ sequenceDiagram
     else event_id baru
         alt event_type selain payment.succeeded dan payment.failed
             API->>DB: outcome IGNORED
+        else pesanan tidak ada
+            API->>DB: outcome ORDER_NOT_FOUND (juga untuk payment.failed)
         else payment.failed
             API->>DB: outcome PAYMENT_FAILED, pesanan tidak diubah
-        else pesanan tidak ada
-            API->>DB: outcome ORDER_NOT_FOUND
         else amount tidak sama dengan total_price
             API->>DB: outcome AMOUNT_MISMATCH, pesanan tetap PENDING
         else payment.succeeded
@@ -53,6 +53,10 @@ sequenceDiagram
         API-->>P: 200 received true, duplicate false, outcome
     end
 ```
+
+## Urutan pemeriksaan untuk event baru
+
+Pesanan dicari lebih dulu, jadi `payment.failed` untuk pesanan yang tidak dikenal dicatat `ORDER_NOT_FOUND`, bukan `PAYMENT_FAILED`. Setelah itu `payment.failed`, lalu pencocokan `amount`, baru `payment.succeeded` diproses.
 
 ## Kenapa gerbang dedupe paling awal
 
