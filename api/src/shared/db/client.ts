@@ -30,6 +30,14 @@ export function createDatabase(config: DatabaseConfig) {
     console.error("Unexpected error on idle database client", err);
   });
 
+  // pg-pool drops its own listener while a client is checked out, so a session
+  // Postgres ends mid-transaction would crash the process; now that query fails.
+  pool.on("connect", (client) => {
+    client.on("error", (err) => {
+      console.warn(`Database connection lost: ${err.message}`);
+    });
+  });
+
   const db = drizzle({ client: pool, schema });
   return { db, pool, close: () => pool.end() };
 }
