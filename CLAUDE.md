@@ -180,6 +180,17 @@ Frontend (web/):
 - Compose: service `web` di port host 8080 (`WEB_PORT`), start setelah `api` sehat. Healthcheck memakai `127.0.0.1`, karena `localhost` di container di-resolve ke IPv6 sementara nginx hanya mendengarkan IPv4. `tools/demo.mjs` hanya menyalakan `api` supaya tidak mengambil port 8080 dari stack dev.
 - Screenshot dan snapshot Playwright MCP tersimpan di `.playwright-mcp/` (di-gitignore).
 
+Frontend pembeli (web/):
+- Semua tanggal dan jam tampil dalam WIB (`Asia/Jakarta`) berformat Indonesia lewat `web/src/lib/format.ts` (`formatDateTime` menambah "WIB"). Input waktu form selalu dianggap WIB (`wibInputToIso`).
+- `GET /events` dan `GET /events/:id` publik, dan halaman `/` serta `/event/:id` juga publik. Tombol pesan untuk tamu membawa ke `/masuk` dengan `state.from`, dan setelah masuk pembeli kembali ke halaman itu. Organizer melihat detail event tanpa kontrol pesan.
+- Respons publik event kini memuat `quota` (untuk SeatMap); rincian `sold` dan `reserved` tetap hanya untuk organizer.
+- SeatMap menggambar maksimal 200 kotak; kuota lebih besar membuat satu kotak mewakili `ceil(kuota/200)` kursi, dengan keterangan "1 kotak = N kursi". Publik hanya dua keadaan (terisi, tersedia); umber untuk kursi ditahan hanya di dashboard organizer.
+- Idempotency-Key dibuat sekali per percobaan pesan (`crypto.randomUUID()`), dipakai ulang hanya kalau jawabannya hilang (jaringan putus atau 503), dan dibuang setelah jawaban pasti atau saat jumlah atau tipe tiket berubah.
+- Hitung mundur pesanan memakai `expires_at` dan selisih jam server: `lib/serverClock.ts` mengambil median 5 sampel dari header `Date` tiap respons (resolusi satu detik, ditambah 500 ms). Saat waktu habis tampilan langsung Kedaluwarsa dan tombol bayar hilang tanpa menunggu sweeper.
+- Pembayaran simulasi: respons 404 `NOT_FOUND` dari `/orders/:id/pay` dijelaskan sebagai "hanya tersedia di mode development".
+- QR memakai `uqr` 0.1.3 (sekitar 4,3 KB gzip): matriksnya digambar sendiri sebagai satu path SVG dengan warna token, bukan string SVG dari library. Isi QR adalah kode tiket. "Lot" di kartu tiket adalah 6 karakter pertama ID pesanan, "Kursi n dari m" adalah `seq` dari jumlah tiket pesanan itu.
+- Data demo: `npm --prefix api run demo-data` (lihat DECISIONS.md bagian 15). Login demo: `organizer@quotient.local` / `organizer-demo-pass`, dan `pembeli1` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
+
 Urutan lock (wajib untuk payments dan sweeper):
 - Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
 - Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).

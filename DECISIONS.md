@@ -188,6 +188,8 @@ Pengecekan ini dilakukan paling awal, dengan advisory lock untuk key tersebut, s
 - SSE dipilih karena datanya satu arah (server ke browser), lebih sederhana dari WebSocket, dan browser otomatis menyambung ulang.
 - Untuk lebih dari satu instance API, perubahan kuota disebarkan lewat `LISTEN/NOTIFY` PostgreSQL. `pg_notify` dipanggil di dalam transaksi dan baru terkirim setelah commit, jadi rollback tidak pernah memicu notifikasi. Ini juga alasan tidak perlu Redis pub/sub.
 - Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan frontend harus menangani "tiket baru saja habis".
+- **Autentikasi SSE organizer: tiket stream berumur pendek.** `EventSource` tidak bisa mengirim header `Authorization`. Frontend meminta `POST /organizer/events/:id/stream-ticket` dengan Bearer biasa, lalu mendapat JWT berklaim `scope: "stream"` dan `event_id` yang berlaku 60 detik, dipakai di `?ticket=` saat membuka stream dan hanya diperiksa saat koneksi dibuka. JWT login tidak pernah masuk ke URL, jadi tidak tercatat di log akses nginx. Alternatif yang ditolak: JWT login di query string (token berumur panjang bocor ke log), cookie HttpOnly (mengubah seluruh alur auth), dan SSE lewat `fetch` dengan header (sambung ulang harus dibuat sendiri).
+- **Sumber notifikasi: trigger database.** Trigger `AFTER UPDATE OF sold, reserved ON ticket_types` memanggil `pg_notify` lewat migrasi. Trigger berjalan di transaksi yang sama untuk semua jalur (pesan, batal, bayar, sweeper, webhook refund, termasuk strategi naive), jadi tidak ada jalur yang bisa terlewat, dan rollback tidak pernah mengirim notifikasi. Postgres menggabungkan notifikasi identik dalam satu transaksi, jadi satu batch sweeper hanya menghasilkan satu notifikasi per event. Alternatifnya, `pg_notify` eksplisit di setiap jalur kode, berisiko ada jalur yang lupa dipasangi.
 
 ---
 
@@ -263,6 +265,16 @@ Mengklaim "kode saya pakai transaksi, jadi aman" itu mudah. Saya ingin membuktik
 **Naive vs atomic.** Dengan kuota 1, strategi naive meloloskan 2 pesanan dan `reserved` tetap tercatat 1. Strategi atomic hanya meloloskan 1.
 
 **Uji 200 pesanan dan invariant checker.** *(sedang dikerjakan)* 200 pembeli memesan bersamaan untuk kuota 100. Hasil yang diharapkan: tepat 100 terjual dengan atomic. Invariant checker lalu memeriksa bahwa `reserved` sama dengan jumlah pesanan PENDING, `sold` sama dengan jumlah pesanan PAID, dan jumlah tiket sama dengan `sold`.
+
+---
+
+---
+
+## 15. Data demo lewat logika bisnis asli
+
+**Pilihan.** Skrip `tools/demo-data/seed.mts` (`npm --prefix api run demo-data`) membuat event dan pesanan demo dengan memanggil `createApp` di dalam proses, bukan dengan menulis baris ke tabel. Pesanan EXPIRED dibuat pada jam yang dimundurkan 20 menit lalu disapu oleh sweeper asli.
+
+**Alasan.** Data yang dibuat lewat jalur bisnis yang sama dengan pengguna nyata otomatis konsisten: counter `reserved` dan `sold`, tiket, dan invariant checker tetap OK. Data yang ditulis langsung ke tabel gampang melanggar invariant tanpa disadari, dan itu akan merusak demo yang justru membuktikan invariant. Skrip tidak jalan otomatis saat start, dan skrip uji beban tidak memakainya.
 
 ---
 
