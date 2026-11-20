@@ -100,10 +100,11 @@ Login demo: organizer `organizer@quotient.local` / `organizer-demo-pass`, pembel
 Uji ini menjawab pertanyaan utama proyek: apakah kuota bisa terjual lebih kalau banyak orang memesan di detik yang sama?
 
 ```bash
+npm --prefix api ci
 node tools/demo.mjs
 ```
 
-Satu perintah ini membutuhkan Docker dan Node.js, dan menjalankan urutan lengkap dua kali, sekali dengan strategi `naive` lalu dengan `atomic`. Setiap fase memakai database yang baru di-reset, di compose project terpisah (`quotient-demo`, port 3100 dan 5434), jadi stack dev tidak tersentuh. Urutannya:
+Dua perintah ini membutuhkan Docker dan Node.js 22 (`npm ci` memasang `tsx`, yang dipakai invariant checker). Skrip menarik image k6 saat pertama kali jalan dan menjalankan urutan lengkap dua kali, sekali dengan strategi `naive` lalu dengan `atomic`. Setiap fase memakai database yang baru di-reset, di compose project terpisah (`quotient-demo`, port 3100 dan 5434), jadi stack dev tidak tersentuh. Urutannya:
 
 1. Reset database.
 2. Seed satu event (Reguler kuota 100) dan 200 akun pembeli.
