@@ -186,7 +186,7 @@ Setiap tampilan data punya state kosong, loading, dan error. Kalimat untuk state
 | Situasi | Pesan |
 |---|---|
 | Kursi habis saat tombol ditekan | "Kursi baru saja habis. Sisa kuota sudah diperbarui." |
-| Batas 4 tiket | "Kamu sudah memegang 4 tiket untuk event ini." |
+| Batas 4 tiket | "Batas 4 tiket per akun untuk event ini sudah tercapai." |
 | Pesanan kedaluwarsa | "Waktu bayar habis. Kursi sudah dilepas untuk pembeli lain." |
 | Database sibuk (503) | "Sistem sedang ramai. Coba lagi beberapa detik." |
 | Login gagal | "Email atau password tidak cocok." |
