@@ -8,7 +8,7 @@ import {
 
 // Three shares of the ring stay, the fourth leaves as the tail of the Q.
 // The viewBox crops to the drawn shape, so `size-*` is the height of the mark itself.
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className, tailClassName = "fill-umber" }: { className?: string; tailClassName?: string }) {
   return (
     <svg viewBox="24.78 24.78 206.43 206.43" aria-hidden="true" focusable="false" className={className}>
       <g transform={SYMBOL_TRANSFORM}>
@@ -17,7 +17,7 @@ export function LogoMark({ className }: { className?: string }) {
             <path key={d} d={d} />
           ))}
         </g>
-        <rect {...SYMBOL_TAIL} className="fill-umber" />
+        <rect {...SYMBOL_TAIL} className={tailClassName} />
       </g>
     </svg>
   );
