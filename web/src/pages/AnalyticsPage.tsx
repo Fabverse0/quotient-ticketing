@@ -1,0 +1,285 @@
+import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { Link, useNavigate, useParams } from "react-router";
+import { ApiError, messageFor } from "../api/errors";
+import type { TicketKind } from "../api/events";
+import { getMyEvent, listMyEvents, recentOrders, type OrganizerEvent, type OrganizerTicketType } from "../api/organizer";
+import { Bar } from "../components/Bar";
+import { CountUp } from "../components/CountUp";
+import { InvariantPanel } from "../components/InvariantPanel";
+import { LiveStatus } from "../components/LiveStatus";
+import { OrderStatus } from "../components/OrderStatus";
+import { PageLoading, PageMessage } from "../components/PageState";
+import { Ring } from "../components/Ring";
+import { SeatMap } from "../components/SeatMap";
+import { POLL_MS } from "../hooks/useLiveStream";
+import { useOrganizerStream } from "../hooks/useOrganizerStream";
+import { formatCount, formatDateTime, formatPercent, formatRupiah, kindLabel } from "../lib/format";
+import { serverNow } from "../lib/serverClock";
+import { stagger } from "../lib/stagger";
+
+const card = "rise rounded-card bg-wall p-6";
+
+// Same pairing as the overview: Reguler is the ink blue, VIP the umber.
+const KIND_STYLE: Record<TicketKind, { fill: string; tint: string }> = {
+  REGULAR: { fill: "bg-inkblue", tint: "bg-blue-wash" },
+  VIP: { fill: "bg-umber", tint: "bg-clay" },
+};
+
+export function AnalyticsPage() {
+  const { id = "" } = useParams();
+  const event = useQuery({ queryKey: ["organizer-event", id], queryFn: () => getMyEvent(id) });
+
+  if (event.isPending) return <PageLoading />;
+  if (event.isError) {
+    const status = event.error instanceof ApiError ? event.error.status : 0;
+    const text =
+      status === 403 ? "Event ini milik organizer lain." : status === 404 || status === 400 ? "Event ini tidak ditemukan." : messageFor(event.error);
+    return (
+      <PageMessage action={status ? undefined : { label: "Muat ulang analitik", onClick: () => void event.refetch() }}>
+        {text}
+      </PageMessage>
+    );
+  }
+  return <Analytics event={event.data} />;
+}
+
+function Analytics({ event }: { event: OrganizerEvent }) {
+  const { polling, stoppedBy } = useOrganizerStream(event.id);
+  // A second observer of the page's query, so it polls only while the stream is down.
+  useQuery({
+    queryKey: ["organizer-event", event.id],
+    queryFn: () => getMyEvent(event.id),
+    refetchInterval: polling ? POLL_MS : false,
+  });
+
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="rise flex flex-wrap items-end justify-between gap-4" style={stagger(0)}>
+        <div>
+          <h1 className="text-title font-bold text-ink">Analitik</h1>
+          <p className="mt-1 text-small text-quiet">Penjualan, kursi, dan kecocokan data untuk satu event.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <LiveStatus polling={polling} stopped={Boolean(stoppedBy)} />
+          <EventPicker currentId={event.id} />
+        </div>
+      </header>
+      {stoppedBy && (
+        <p role="alert" className="text-small text-oxblood">
+          Angka di halaman ini tidak diperbarui lagi. {messageFor(stoppedBy)}
+        </p>
+      )}
+
+      <EventHero event={event} />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {event.ticketTypes.map((type, i) => (
+          <KindCard key={type.id} type={type} index={2 + i} />
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <InvariantPanel eventId={event.id} />
+        <OrdersPanel eventId={event.id} polling={polling} />
+      </div>
+    </div>
+  );
+}
+
+// A native select: keyboard, screen readers and phones already know how to use it.
+function EventPicker({ currentId }: { currentId: string }) {
+  const navigate = useNavigate();
+  const events = useQuery({ queryKey: ["organizer-events"], queryFn: listMyEvents });
+  if (!events.data || events.data.length < 2) return null;
+  return (
+    <label className="flex items-center gap-3 text-small text-quiet">
+      <span>Event</span>
+      <span className="relative">
+        <select
+          value={currentId}
+          onChange={(e) => navigate(`/organizer/event/${e.target.value}`)}
+          className="h-(--size-button) max-w-64 appearance-none truncate rounded-chip border border-mist bg-wall py-0 pl-4 pr-10 text-body text-ink"
+        >
+          {events.data.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.title}
+            </option>
+          ))}
+        </select>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-quiet"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </span>
+    </label>
+  );
+}
+
+function EventHero({ event }: { event: OrganizerEvent }) {
+  const sum = (pick: (t: OrganizerTicketType) => number) => event.ticketTypes.reduce((n, t) => n + pick(t), 0);
+  const quota = sum((t) => t.quota);
+  const sold = sum((t) => t.sold);
+  const reserved = sum((t) => t.reserved);
+  const revenue = sum((t) => t.sold * t.price);
+  const soldOf = (kind: TicketKind) => event.ticketTypes.find((t) => t.kind === kind)?.sold ?? 0;
+  const ratio = quota > 0 ? sold / quota : 0;
+
+  return (
+    <section
+      aria-labelledby="event-title"
+      className="rise grid gap-8 rounded-card bg-inkblue p-6 text-canvas sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center"
+      style={stagger(1)}
+    >
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 id="event-title" className="text-title font-bold text-balance break-words">
+            {event.title}
+          </h2>
+          <p className="mt-2 text-body text-blue-mist">{formatDateTime(event.startsAt)}</p>
+          <p className="text-body text-blue-mist">{event.venue}</p>
+        </div>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <HeroStat label="Terjual">
+            <CountUp value={sold} />
+          </HeroStat>
+          <HeroStat label="Sedang ditahan">
+            <CountUp value={reserved} />
+          </HeroStat>
+          <HeroStat label="Kursi tersisa">
+            <CountUp value={quota - sold - reserved} />
+          </HeroStat>
+          <HeroStat label="Pendapatan">
+            <CountUp value={revenue} format={(n) => formatRupiah(Math.round(n))} />
+          </HeroStat>
+        </dl>
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <Ring
+          className="size-40"
+          total={quota}
+          trackClassName="stroke-inkblue-deep"
+          label={`${formatCount(sold)} dari ${formatCount(quota)} kursi terjual: ${formatCount(soldOf("REGULAR"))} Reguler dan ${formatCount(soldOf("VIP"))} VIP`}
+          segments={[
+            { value: soldOf("REGULAR"), className: "stroke-canvas" },
+            { value: soldOf("VIP"), className: "stroke-umber-light" },
+          ]}
+        >
+          <span className="text-title font-bold">{formatPercent(ratio)}</span>
+          <span className="text-caption text-blue-mist">terisi</span>
+        </Ring>
+        <ul className="flex flex-col gap-2 text-small">
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true" className="size-3 rounded-full bg-canvas" />
+            <span className="text-blue-mist">Reguler</span>
+            <span className="font-bold">{formatCount(soldOf("REGULAR"))}</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true" className="size-3 rounded-full bg-umber-light" />
+            <span className="text-blue-mist">VIP</span>
+            <span className="font-bold">{formatCount(soldOf("VIP"))}</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-chip bg-inkblue-deep px-4 py-3">
+      <dt className="text-caption text-blue-mist">{label}</dt>
+      <dd className="mt-1 text-lead font-bold tabular-nums">{children}</dd>
+    </div>
+  );
+}
+
+function KindCard({ type, index }: { type: OrganizerTicketType; index: number }) {
+  const style = KIND_STYLE[type.kind];
+  return (
+    <section aria-labelledby={`kind-${type.kind}`} className={`rise flex flex-col gap-5 rounded-card p-6 ${style.tint}`} style={stagger(index)}>
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id={`kind-${type.kind}`} className="text-lead font-bold text-ink">
+          {kindLabel(type.kind)}
+        </h2>
+        <span className="text-small text-graphite">{formatRupiah(type.price)} per tiket</span>
+      </div>
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Figure label="Kuota" value={type.quota} />
+        <Figure label="Terjual" value={type.sold} />
+        <Figure label="Ditahan" value={type.reserved} />
+        <Figure label="Sisa" value={type.remaining} />
+      </dl>
+      <Bar
+        value={type.sold}
+        max={type.quota}
+        label={`${kindLabel(type.kind)} terjual`}
+        fillClassName={style.fill}
+        trackClassName="bg-canvas"
+      />
+      <SeatMap quota={type.quota} sold={type.sold} reserved={type.reserved} size="large" />
+    </section>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <dt className="text-caption text-graphite">{label}</dt>
+      <dd className="mt-1 text-title font-bold leading-none tabular-nums text-ink">
+        <CountUp value={value} />
+      </dd>
+    </div>
+  );
+}
+
+function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }) {
+  const orders = useQuery({
+    queryKey: ["organizer-orders", eventId],
+    queryFn: () => recentOrders(eventId),
+    refetchInterval: polling ? POLL_MS : false,
+  });
+
+  return (
+    <section aria-labelledby="orders-title" className={`${card} flex flex-col gap-4`} style={stagger(5)}>
+      <h2 id="orders-title" className="text-lead font-bold text-ink">
+        Pesanan terbaru
+      </h2>
+      {orders.isPending && <div role="status" aria-label="Memuat" className="h-32 animate-pulse rounded-chip bg-canvas" />}
+      {orders.isError && <p className="text-small text-oxblood">{messageFor(orders.error)}</p>}
+      {orders.data?.length === 0 && (
+        <p className="text-small text-quiet">
+          Belum ada pesanan untuk event ini. Pesanan baru muncul di sini begitu masuk.
+        </p>
+      )}
+      {orders.data && orders.data.length > 0 && (
+        <ul className="flex flex-col">
+          {orders.data.map((order) => (
+            <li key={order.id} className="grid gap-1 border-t border-mist py-3 first:border-t-0 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4">
+              <span>
+                <span className="block text-ink">{order.buyerName}</span>
+                <span className="text-caption text-quiet">
+                  {order.quantity} × {kindLabel(order.ticketType.kind)}, {formatDateTime(order.createdAt)}
+                </span>
+              </span>
+              <span className="justify-self-start">
+                <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= serverNow()} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link to="/organizer/event" className="soft mt-1 self-start text-small text-quiet underline-offset-4 hover:text-ink">
+        Semua event
+      </Link>
+    </section>
+  );
+}

@@ -129,13 +129,17 @@ Satu kartu per kursi, berbingkai ganda dengan bayangan hangat: segel LUNAS di po
 ### Riwayat pesanan
 Daftar baris dengan garis tipis, bukan kartu. Nama event, jumlah tiket, label status berwarna, dan waktu.
 
-### Dashboard organizer
-- Judul dalam bingkai garis ganda: label kecil "Dashboard organizer · No. FA4628" (enam karakter pertama ID event), status di kanan atas, nama event Marcellus kapital berspasi lebar (sama dengan pita detail event), lalu tiga kolom bergaris tipis: Waktu, Tempat, dan Kapasitas (total kursi dan per tipe). Status memakai satu titik yang menandai keadaan nyata: sage "Diperbarui langsung", oker saat polling 10 detik, oxblood saat pembaruan berhenti. Titik tidak berdenyut dan tidak bercahaya.
-- Tab tipe tiket dengan garis bawah tipis.
-- Panel wall berisi empat angka besar Hanken Grotesk tebal (kuota, terjual, ditahan, sisa) dan peta kursi besar dengan keterangan.
-- Panel pemeriksaan invariant: judul, satu kalimat penjelasan, dan tombol "Jalankan pemeriksaan" (tetap manual). Enam pemeriksaan selalu terlihat, bernomor 01 sampai 06, dengan kalimat biasa dan rumusnya di bawahnya (misalnya `reserved = jumlah quantity pesanan PENDING`), status "Belum diperiksa" sebelum dijalankan. Sesudahnya muncul ringkasan bercincin ganda: sage "Semua cocok" atau oxblood "N pemeriksaan dilanggar" beserta jumlah yang lulus dan waktu periksa. Setiap baris menampilkan status dengan ikon dan teks (bukan hanya warna) dan angka yang dibandingkan lengkap dengan namanya, misalnya `ditahan 7 = pesanan menunggu 7`. Yang dilanggar berwarna oxblood dan merinci tipe tiketnya, dan panel mendapat garis oxblood.
-- Panel pesanan terbaru: pembeli, jumlah, label status, waktu.
-- Tidak ada tile galeri dan sampul di dashboard. Organizer membaca angka.
+### Area organizer: shell, Ringkasan, Analitik
+
+Area organizer (`/organizer/*`) punya wajah sendiri, terpisah dari halaman pembeli. Sudut besar dan tint lembut hanya berlaku di sini (lihat "Dashboard organizer: warna tambahan").
+
+- **Shell**: rail ikon di kiri (inkblue, sudut 28px, lebar 96px, menempel saat gulir) berisi logo, Ringkasan, Analitik, Event saya, Buat event, lalu inisial akun dan Keluar. Item aktif berlatar canvas. Di ponsel rail menjadi bilah di bawah dengan item yang sama. Isi halaman berada di satu panel besar berlatar field.
+- **Ringkasan** (`/organizer`): sapaan sesuai jam WIB, lalu kartu utama inkblue: jumlah tiket terjual seluruh event dengan hitung naik, tiga angka pendukung (pendapatan dari pesanan lunas, ditahan, sisa), dan cincin terisi yang dibagi Reguler dan VIP. Di bawahnya: kartu Reguler dibanding VIP (terjual, kuota, pendapatan, porsi pendapatan), kartu Penjualan per event (batang Reguler dan VIP berdampingan, terjual terhadap kuota masing-masing), dan kartu Event berikutnya.
+- **Analitik** (`/organizer/event/:id`, `/organizer/analitik` membuka event terdekat yang belum mulai): judul, indikator status, dan pemilih event. Kartu utama inkblue berisi nama event, waktu, tempat, empat angka (terjual, ditahan, sisa, pendapatan), dan cincin. Lalu satu kartu untuk Reguler dan satu untuk VIP berdampingan (kuota, terjual, ditahan, sisa, batang, peta kursi besar), panel pemeriksaan invariant, dan pesanan terbaru.
+- **Indikator status**: satu titik yang menandai keadaan nyata: sage "Diperbarui langsung", oker saat polling 10 detik, oxblood saat pembaruan berhenti. Tidak berdenyut dan tidak bercahaya.
+- **Pembanding tipe tiket**: Reguler selalu inkblue dan VIP selalu umber, di batang, cincin, dan kartu. Setiap grafik punya padanan teks (angka di sampingnya atau `aria-label`), jadi warna bukan satu-satunya pembeda.
+- **Panel pemeriksaan invariant**: judul, satu kalimat penjelasan, dan tombol "Jalankan pemeriksaan" (tetap manual). Enam pemeriksaan selalu terlihat dengan kalimat biasa dan rumusnya, berstatus "Belum diperiksa" sebelum dijalankan. Sesudahnya muncul ringkasan bercincin ganda: sage "Semua cocok" atau oxblood "N pemeriksaan dilanggar", jumlah yang lulus, dan waktu periksa. Setiap baris menampilkan status dengan ikon dan teks serta angka yang dibandingkan lengkap dengan namanya (`ditahan 7 = pesanan menunggu 7`). Yang dilanggar berwarna oxblood dan merinci tipe tiketnya, dan panel mendapat garis oxblood.
+- **Gerak**: kartu muncul bergantian sekali saat halaman dibuka (naik 16px sambil memudar, selang 90ms, 1,2 detik), angka naik dengan hitung halus, dan batang serta cincin tumbuh dari nol. Hanya `transform` dan `opacity`, kecuali panjang busur cincin (`stroke-dasharray`). Mati saat pengguna memilih gerak dikurangi. Tidak ada gerak yang berulang terus.
 
 ### Buat event (organizer)
 Form satu kolom: nama, deskripsi, tempat, waktu, lalu dua kotak tipe tiket (Reguler dan VIP) berdampingan, masing masing harga dan kuota.

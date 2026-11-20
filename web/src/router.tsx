@@ -2,10 +2,10 @@ import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { OrganizerShell } from "./components/OrganizerShell";
 import { RequireRole } from "./components/RequireRole";
+import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { AnalyticsRedirect } from "./pages/AnalyticsRedirect";
 import { AuthPage } from "./pages/AuthPage";
 import { CreateEventPage } from "./pages/CreateEventPage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { EventDetailPage } from "./pages/EventDetailPage";
 import { EventsPage } from "./pages/EventsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
       { path: "analitik", element: <AnalyticsRedirect /> },
       { path: "event", element: <OrganizerEventsPage /> },
       { path: "event/baru", element: <CreateEventPage /> },
-      { path: "event/:id", element: <DashboardPage /> },
+      { path: "event/:id", element: <AnalyticsPage /> },
     ],
   },
 ]);
