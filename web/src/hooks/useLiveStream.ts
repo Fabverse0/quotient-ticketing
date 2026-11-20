@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { ApiError } from "../api/errors";
 
 const RETRY_MS = 3000;
 const FALLBACK_AFTER_MS = 10_000;
 export const POLL_MS = 10_000;
+
+// Retrying cannot fix these: signed out, not the owner, or the event is gone.
+// EventSource never exposes a status, so they are only seen on the ticket request,
+// which runs the same checks as the stream right before it opens.
+const isPermanent = (error: unknown) => error instanceof ApiError && [401, 403, 404].includes(error.status);
 
 interface Options {
   // Resolved on every attempt: an organizer stream needs a fresh ticket each time.
@@ -13,15 +19,18 @@ interface Options {
   enabled?: boolean;
 }
 
-// Returns true while the stream has been down for more than 10 seconds; the
-// caller then polls every POLL_MS until the stream is back.
+// `polling` is true while the stream has been down for more than 10 seconds;
+// the caller then polls every POLL_MS until it is back. `stoppedBy` holds the
+// error that ended the stream for good; nothing is retried or polled after it.
 export function useLiveStream(key: string, { url, handlers, onOpen, enabled = true }: Options) {
   const [polling, setPolling] = useState(false);
+  const [stoppedBy, setStoppedBy] = useState<ApiError>();
   const latest = useRef({ url, handlers, onOpen });
   latest.current = { url, handlers, onOpen };
 
   useEffect(() => {
     if (!enabled) return;
+    setStoppedBy(undefined);
     let source: EventSource | undefined;
     let retry: number | undefined;
     let fallback: number | undefined;
@@ -36,8 +45,15 @@ export function useLiveStream(key: string, { url, handlers, onOpen, enabled = tr
       let target: string;
       try {
         target = await latest.current.url();
-      } catch {
-        if (!stopped) lost();
+      } catch (error) {
+        if (stopped) return;
+        if (isPermanent(error)) {
+          window.clearTimeout(fallback);
+          setPolling(false);
+          setStoppedBy(error as ApiError);
+          return;
+        }
+        lost();
         return;
       }
       if (stopped) return;
@@ -72,5 +88,5 @@ export function useLiveStream(key: string, { url, handlers, onOpen, enabled = tr
     };
   }, [key, enabled]);
 
-  return polling;
+  return { polling, stoppedBy };
 }

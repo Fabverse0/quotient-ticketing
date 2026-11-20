@@ -7,8 +7,8 @@ interface QuotaMessage {
   ticketTypes: Array<{ id: string; quota: number; sold: number; reserved: number; remaining: number }>;
 }
 
-// Live counters and recent orders for one event's dashboard. Returns true while
-// the stream is down and the dashboard should poll instead.
+// Live counters and recent orders for one event's dashboard. See useLiveStream
+// for `polling` and `stoppedBy`.
 export function useOrganizerStream(eventId: string) {
   const queryClient = useQueryClient();
 

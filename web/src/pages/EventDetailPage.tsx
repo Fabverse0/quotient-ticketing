@@ -26,7 +26,7 @@ const isLostAnswer = (error: unknown) =>
 
 export function EventDetailPage() {
   const { id = "" } = useParams();
-  const polling = usePublicQuota();
+  const { polling } = usePublicQuota();
   const event = useQuery({ queryKey: ["event", id], queryFn: () => getEvent(id), refetchInterval: polling ? POLL_MS : false });
 
   if (event.isPending) return <PageLoading />;
