@@ -326,4 +326,5 @@ Mengklaim "kode saya pakai transaksi, jadi aman" itu mudah. Saya ingin membuktik
 - Payload webhook yang mengandung karakter NUL (`\u0000`) ditolak tipe `jsonb` dan berakhir 500.
 - Token JWT tetap berlaku sampai kedaluwarsa walaupun akunnya dihapus.
 - `GET /events` dan riwayat pesanan belum memakai paginasi.
+- Kalau Postgres memutus koneksi pool yang sedang dipakai (transaksi diam lebih dari 10 detik, restart, atau jaringan putus), request yang memakai koneksi itu gagal dengan 500 dan tidak diulang otomatis. Transaksinya batal utuh, jadi kuota tidak berubah setengah jalan. Sebelumnya kejadian ini mematikan seluruh proses API, karena `pg-pool` melepas listener error saat koneksi dipinjam. Ini sempat terjadi di stack dev saat Docker kelebihan beban. Sekarang setiap koneksi pool punya listener sendiri, dan ada test yang memutus koneksi di tengah transaksi lalu memastikan proses tetap hidup dan pool tetap melayani.
 - Token JWT di frontend disimpan di `localStorage` supaya sesi bertahan setelah reload. Skrip apa pun yang berjalan di halaman (misalnya lewat celah XSS) bisa membacanya.
