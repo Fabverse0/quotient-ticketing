@@ -122,11 +122,11 @@ export function CreateEventPage() {
   );
 
   return (
-    <section className="mx-auto max-w-2xl py-12">
-      <p className="text-label uppercase tracking-label text-quiet">Dashboard organizer</p>
-      <h1 className="mt-2 font-display text-title text-ink">Buat event</h1>
+    <section className="mx-auto max-w-2xl">
+      <h1 className="text-title font-bold text-ink">Buat event</h1>
+      <p className="mt-1 text-small text-quiet">Satu event punya dua tipe tiket: Reguler dan VIP. Waktu dibaca sebagai WIB.</p>
 
-      <form ref={ref} onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-5">
+      <form ref={ref} onSubmit={onSubmit} noValidate className="rise mt-6 flex flex-col gap-5 rounded-card bg-wall p-6 sm:p-8">
         <Field label="Nama event" placeholder="Malam Jazz Kota Lama" value={values.title} onChange={set("title")} error={errors.title} />
         <Field
           label="Deskripsi"

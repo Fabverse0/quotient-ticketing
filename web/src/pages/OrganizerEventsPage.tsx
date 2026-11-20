@@ -1,23 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { messageFor } from "../api/errors";
+import type { TicketKind } from "../api/events";
 import { listMyEvents } from "../api/organizer";
+import { Bar } from "../components/Bar";
 import { PageMessage } from "../components/PageState";
-import { formatCount, formatDateTime } from "../lib/format";
+import { formatCount, formatDayMonth, formatDateTime, kindLabel } from "../lib/format";
+import { stagger } from "../lib/stagger";
 
 const buttonLink =
-  "inline-flex h-(--size-button) items-center justify-center rounded-ui bg-ink px-5 font-bold text-canvas " +
-  "transition-colors duration-(--dur-fast) hover:bg-ink-deep";
+  "soft inline-flex h-(--size-button) items-center justify-center rounded-chip bg-ink px-5 font-bold text-canvas " +
+  "hover:bg-ink-deep";
+
+const KINDS: Array<{ kind: TicketKind; fill: string; track: string }> = [
+  { kind: "REGULAR", fill: "bg-inkblue", track: "bg-blue-wash" },
+  { kind: "VIP", fill: "bg-umber", track: "bg-clay" },
+];
 
 export function OrganizerEventsPage() {
   const events = useQuery({ queryKey: ["organizer-events"], queryFn: listMyEvents });
 
   return (
-    <section className="py-12">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <section className="flex flex-col gap-6">
+      <div className="rise flex flex-wrap items-end justify-between gap-4" style={stagger(0)}>
         <div>
-          <p className="text-label uppercase tracking-label text-quiet">Dashboard organizer</p>
-          <h1 className="mt-2 font-display text-title text-ink">Event saya</h1>
+          <h1 className="text-title font-bold text-ink">Event saya</h1>
+          <p className="mt-1 text-small text-quiet">Pilih event untuk melihat analitiknya.</p>
         </div>
         <Link to="/organizer/event/baru" className={buttonLink}>
           Buat event
@@ -25,9 +33,9 @@ export function OrganizerEventsPage() {
       </div>
 
       {events.isPending && (
-        <ul role="status" aria-label="Memuat" className="flex flex-col">
-          {[0, 1, 2].map((i) => (
-            <li key={i} className="h-16 animate-pulse border-b border-mist bg-wall/60" />
+        <ul role="status" aria-label="Memuat" className="grid gap-4 md:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="h-40 animate-pulse rounded-card bg-wall" />
           ))}
         </ul>
       )}
@@ -38,26 +46,43 @@ export function OrganizerEventsPage() {
       )}
       {events.data?.length === 0 && <PageMessage ornament>Belum ada event. Buat event pertamamu.</PageMessage>}
       {events.data && events.data.length > 0 && (
-        <ul className="flex flex-col border-t border-mist">
-          {events.data.map((event) => {
-            const quota = event.ticketTypes.reduce((n, t) => n + t.quota, 0);
-            const sold = event.ticketTypes.reduce((n, t) => n + t.sold, 0);
-            const held = event.ticketTypes.reduce((n, t) => n + t.reserved, 0);
+        <ul className="grid gap-4 md:grid-cols-2">
+          {events.data.map((event, i) => {
+            const { day, month } = formatDayMonth(event.startsAt);
             return (
-              <li key={event.id} className="border-b border-mist">
+              <li key={event.id} className="rise" style={stagger(i + 1)}>
                 <Link
                   to={`/organizer/event/${event.id}`}
-                  className="grid gap-1 py-4 hover:bg-wash sm:grid-cols-[1fr_auto] sm:items-center sm:gap-6 sm:px-2"
+                  className="soft flex h-full flex-col gap-4 rounded-card bg-wall p-5 hover:bg-blue-wash"
                 >
-                  <span>
-                    <span className="block text-ink">{event.title}</span>
-                    <span className="text-small text-quiet">
-                      {formatDateTime(event.startsAt)} · {event.venue}
+                  <span className="flex items-center gap-4">
+                    <span
+                      aria-hidden="true"
+                      className="flex size-14 shrink-0 flex-col items-center justify-center rounded-chip bg-clay text-ink"
+                    >
+                      <span className="text-lead font-bold leading-none">{day}</span>
+                      <span className="text-caption">{month}</span>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-body font-bold text-ink">{event.title}</span>
+                      <span className="block truncate text-caption text-graphite">
+                        {formatDateTime(event.startsAt)}, {event.venue}
+                      </span>
                     </span>
                   </span>
-                  <span className="text-small text-quiet">
-                    {formatCount(sold)} terjual · {formatCount(held)} ditahan · {formatCount(quota)} kursi
-                  </span>
+                  {KINDS.map(({ kind, fill, track }) => {
+                    const type = event.ticketTypes.find((t) => t.kind === kind);
+                    if (!type) return null;
+                    return (
+                      <span key={kind} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 text-caption">
+                        <span className="text-graphite">{kindLabel(kind)}</span>
+                        <Bar value={type.sold} max={type.quota} label={`${kindLabel(kind)}, ${event.title}`} fillClassName={fill} trackClassName={track} />
+                        <span className="min-w-20 text-right tabular-nums text-ink">
+                          {formatCount(type.sold)} / {formatCount(type.quota)}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </Link>
               </li>
             );
