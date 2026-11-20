@@ -4,6 +4,7 @@ import { messageFor } from "../api/errors";
 import { checkInvariants, type InvariantCheck, type InvariantReport } from "../api/organizer";
 import { useShake } from "../hooks/useShake";
 import { formatDateTime, kindLabel } from "../lib/format";
+import { stagger } from "../lib/stagger";
 import { CHECKS, compare, type CheckInfo } from "../lib/invariants";
 import { Button } from "./Button";
 
@@ -95,7 +96,8 @@ export function InvariantPanel({ eventId }: { eventId: string }) {
     <section
       ref={ref}
       aria-labelledby="invariant-title"
-      className={`flex flex-col gap-6 rounded-ui bg-wall p-6 ${report && !report.ok ? "border border-oxblood" : ""}`}
+      className={`rise flex flex-col gap-6 rounded-card bg-wall p-6 ${report && !report.ok ? "border border-oxblood" : ""}`}
+      style={stagger(4)}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
