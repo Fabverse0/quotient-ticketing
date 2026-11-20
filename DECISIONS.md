@@ -304,7 +304,39 @@ Mengklaim "kode saya pakai transaksi, jadi aman" itu mudah. Saya ingin membuktik
 
 **Naive vs atomic.** Dengan kuota 1, strategi naive meloloskan 2 pesanan dan `reserved` tetap tercatat 1. Strategi atomic hanya meloloskan 1.
 
-**Uji 200 pesanan dan invariant checker.** *(sedang dikerjakan)* 200 pembeli memesan bersamaan untuk kuota 100. Hasil yang diharapkan: tepat 100 terjual dengan atomic. Invariant checker lalu memeriksa bahwa `reserved` sama dengan jumlah pesanan PENDING, `sold` sama dengan jumlah pesanan PAID, dan jumlah tiket sama dengan `sold`.
+**Uji 200 pesanan dan invariant checker.** 200 pembeli memesan bersamaan untuk kuota 100, lewat k6 terhadap API sungguhan (`node tools/demo.mjs`). Setiap run memakai database yang di-reset, lalu invariant checker membandingkan counter dengan isi tabel pesanan. Empat run berturut-turut pada 19 November 2026:
+
+| Run | Strategi | 201 | 409 `QUOTA_EXHAUSTED` | `reserved` | Pesanan aktif | Invariant |
+|---|---|---|---|---|---|---|
+| 1 | naive | 200 | 0 | 24 | 200 | LANGGAR |
+| 1 | atomic | 100 | 100 | 100 | 100 | OK |
+| 2 | naive | 200 | 0 | 17 | 200 | LANGGAR |
+| 2 | atomic | 100 | 100 | 100 | 100 | OK |
+| 3 | naive | 200 | 0 | 20 | 200 | LANGGAR |
+| 3 | atomic | 100 | 100 | 100 | 100 | OK |
+| 4 | naive | 200 | 0 | 22 | 200 | LANGGAR |
+| 4 | atomic | 100 | 100 | 100 | 100 | OK |
+
+Atomic tepat 100 terjual di keempat run, tanpa error selain 409. Naive meloloskan semua 200 pesanan untuk kuota 100, dan `reserved` hanya tercatat 17 sampai 24. CHECK `sold + reserved <= quota` tidak menangkapnya karena counter justru terlalu kecil. Oversell hanya terlihat dari invariant checker, yang membandingkan kuota dengan pesanan yang benar benar tercatat. Run naive memakai `NAIVE_RACE_DELAY_MS=30` supaya lost update muncul di setiap run; jeda itu tidak menciptakan bugnya.
+
+**Bug yang hanya ketahuan lewat k6.** Dua kali saya menemukan masalah yang tidak terlihat di test biasa karena test tidak pernah membuat pool penuh.
+
+1. *Pembaca counter antre di pool.* Dashboard organizer saya ukur selama burst 200 pesanan. Angkanya hanya bergerak 0, 83, lalu 100, padahal seharusnya naik bertahap. Penyebabnya: bacaan counter untuk stream memakai pool yang sama dengan request pesanan. Kesepuluh koneksi sedang terpakai, jadi bacaan ikut antre sampai burst hampir selesai. Bacaan dipindah ke koneksi LISTEN sendiri, dan run berikutnya bergerak 16, 35, 65, 100 dalam sekitar satu detik. Pembuktiannya ada di test *still pushes while every pooled connection is busy*: test memenuhi pool dengan `pg_sleep`, mengubah kuota, lalu memastikan stream tetap menerima angkanya. Test ini sempat lulus dua kali dengan alasan yang salah (query Drizzle bersifat lazy, jadi `db.execute` yang tidak di-`await` tidak pernah jalan), dan baru gagal dengan benar setelah memakai `pool.query`.
+2. *API mati karena koneksi pool diputus.* Saat test lengkap dijalankan dengan Docker yang kelebihan beban, container API dev berhenti dengan exit code 1 dan log `terminating connection due to idle-in-transaction timeout (25P03)`. Ternyata `pool.on("error")` hanya menangkap error koneksi idle, karena `pg-pool` melepas listener-nya saat koneksi dipinjam. Test `db-connection-loss.test.ts` mereproduksinya dulu: di tengah transaksi, sesi Postgres-nya diputus dengan `pg_terminate_backend`. Sebelum perbaikan test gagal dengan dua error yang tidak tertangkap; sesudah setiap koneksi pool diberi listener `error` sendiri, hanya transaksi itu yang gagal dan pool tetap melayani query berikutnya.
+
+**Pengukuran performa.** Semua angka di bawah diukur di mesin saya sendiri dengan Chrome DevTools dan k6, bukan perkiraan. API, web, dan k6 berjalan di mesin yang sama, jadi angkanya menunjukkan perilaku relatif, bukan kapasitas server.
+
+| Yang diukur | Hasil |
+|---|---|
+| Daftar event, LCP | 355 ms, CLS 0,00 |
+| Dashboard organizer, LCP | 900 ms (895 ms di antaranya menunggu data), CLS 0,00 |
+| Frame dashboard selama burst 200 pesanan | p95 17 ms, maks 67 ms |
+| Sama, CPU diperlambat 4 kali | p95 83 ms, maks 400 ms |
+| Efek blur di grid kursi | tidak ada biaya yang terukur, juga dengan CPU diperlambat 4 kali |
+| Fallback polling | beralih setelah sekitar 10 detik putus, polling tiap 10 detik, kembali ke stream langsung saat tersambung |
+| JavaScript frontend | 125,64 KB gzip |
+| API berhenti dengan stream terbuka | 1,1 detik |
+| Latensi p95 request pesanan saat burst | 1,3 sampai 2,5 detik |
 
 ---
 
