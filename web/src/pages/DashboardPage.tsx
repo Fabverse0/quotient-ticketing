@@ -92,7 +92,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
           </div>
         </Reveal>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2">
           <Reveal>
             <InvariantPanel eventId={event.id} />
           </Reveal>
@@ -197,7 +197,9 @@ function OrdersPanel({ eventId }: { eventId: string }) {
                   {order.quantity} × {kindLabel(order.ticketType.kind)} · {formatDateTime(order.createdAt)}
                 </span>
               </span>
-              <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= Date.now()} />
+              <span className="justify-self-start">
+                <OrderStatus status={order.status} expired={new Date(order.expiresAt).getTime() <= Date.now()} />
+              </span>
             </li>
           ))}
         </ul>
