@@ -91,3 +91,32 @@ describe("GET /orders/:id for a paid order", () => {
     expect(body.tickets.map((t: { seq: number }) => t.seq)).toEqual([1, 2, 3]);
   });
 });
+
+describe("ticket codes", () => {
+  it("are all different across orders of different buyers", async () => {
+    const [second, third] = [await buyerToken(app), await buyerToken(app)];
+    const orders = [
+      await paidOrder(buyer.token, event.regular.id, 4),
+      await paidOrder(second.token, event.regular.id, 4),
+      await paidOrder(third.token, event.vip.id, 2),
+    ];
+
+    const codes = orders.flatMap((o) => o.tickets.map((t: { code: string }) => t.code));
+
+    expect(codes).toHaveLength(10);
+    expect(new Set(codes).size).toBe(10);
+  });
+
+  it("cannot be reused: the database refuses a second ticket with the same code", async () => {
+    const first = await paidOrder(buyer.token, event.regular.id, 1);
+    const second = await paidOrder(buyer.token, event.regular.id, 1);
+
+    // seq 2 is free on the second order, so only tickets_code_unique can reject this row.
+    const reuse = testDb.pool.query("INSERT INTO tickets (order_id, seq, code) VALUES ($1, 2, $2)", [
+      second.id,
+      first.tickets[0].code,
+    ]);
+
+    await expect(reuse).rejects.toMatchObject({ constraint: "tickets_code_unique" });
+  });
+});
