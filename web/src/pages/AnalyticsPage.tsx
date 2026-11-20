@@ -276,7 +276,7 @@ function Trends({ eventId, polling }: { eventId: string; polling: boolean }) {
         <h2 id="sales-title" className="text-lead font-bold text-ink">
           Tiket terjual dari waktu ke waktu
         </h2>
-        <p className="mt-1 text-small text-quiet">Jumlah kumulatif tiap kali pesanan lunas, Reguler dan VIP.</p>
+        <p className="mt-1 text-small text-quiet">Tiket yang terbayar di tiap periode, Reguler dan VIP berdampingan.</p>
         <div className="mt-5">
           {analytics.isPending && <div role="status" aria-label="Memuat" className="h-56 animate-pulse rounded-chip bg-canvas" />}
           {analytics.isError && <p className="text-small text-oxblood">{messageFor(analytics.error)}</p>}
