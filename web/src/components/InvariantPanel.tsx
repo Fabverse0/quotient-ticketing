@@ -6,7 +6,6 @@ import { useShake } from "../hooks/useShake";
 import { formatDateTime, kindLabel } from "../lib/format";
 import { stagger } from "../lib/stagger";
 import { CHECKS, compare, type CheckInfo } from "../lib/invariants";
-import { Button } from "./Button";
 
 function Mark({ ok, className }: { ok: boolean; className: string }) {
   return (
@@ -99,7 +98,7 @@ export function InvariantPanel({ eventId }: { eventId: string }) {
       className={`rise flex flex-col gap-6 rounded-card bg-wall p-6 ${report && !report.ok ? "border border-oxblood" : ""}`}
       style={stagger(6)}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col items-start gap-5">
         <div className="flex flex-col gap-1">
           <h2 id="invariant-title" className="text-lead font-bold text-ink">
             Pemeriksaan invariant
@@ -108,9 +107,19 @@ export function InvariantPanel({ eventId }: { eventId: string }) {
             Membandingkan counter kuota dengan pesanan dan tiket yang tercatat untuk event ini. Dijalankan manual.
           </p>
         </div>
-        <Button variant="secondary" onClick={() => check.mutate()} busy={check.isPending} className="shrink-0">
+        <button
+          type="button"
+          onClick={() => check.mutate()}
+          disabled={check.isPending}
+          aria-busy={check.isPending || undefined}
+          className="soft inline-flex h-(--size-button) items-center gap-2 rounded-chip bg-inkblue px-5 text-body font-bold text-canvas hover:bg-inkblue-deep disabled:opacity-60"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
           {check.isPending ? "Memeriksa" : "Jalankan pemeriksaan"}
-        </Button>
+        </button>
       </div>
 
       {check.isError && (
