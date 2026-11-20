@@ -183,13 +183,49 @@ Pengecekan ini dilakukan paling awal, dengan advisory lock untuk key tersebut, s
 
 ## 9. Real time dengan SSE dan LISTEN/NOTIFY
 
-> Belum diimplementasikan. Rencananya:
+**Konteks.** Pembeli melihat sisa kursi dan organizer melihat counter bergerak selagi pesanan masuk. Datanya satu arah (server ke browser), jadi saya memilih SSE: lebih sederhana dari WebSocket. Untuk lebih dari satu instance API, perubahan kuota disebarkan lewat `LISTEN/NOTIFY` PostgreSQL. `pg_notify` dipanggil di dalam transaksi dan baru terkirim setelah commit, jadi rollback tidak pernah memicu notifikasi. Ini juga alasan tidak perlu Redis pub/sub.
 
-- SSE dipilih karena datanya satu arah (server ke browser), lebih sederhana dari WebSocket, dan browser otomatis menyambung ulang.
-- Untuk lebih dari satu instance API, perubahan kuota disebarkan lewat `LISTEN/NOTIFY` PostgreSQL. `pg_notify` dipanggil di dalam transaksi dan baru terkirim setelah commit, jadi rollback tidak pernah memicu notifikasi. Ini juga alasan tidak perlu Redis pub/sub.
-- Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan frontend harus menangani "tiket baru saja habis".
-- **Autentikasi SSE organizer: tiket stream berumur pendek.** `EventSource` tidak bisa mengirim header `Authorization`. Frontend meminta `POST /organizer/events/:id/stream-ticket` dengan Bearer biasa, lalu mendapat JWT berklaim `scope: "stream"` dan `event_id` yang berlaku 60 detik, dipakai di `?ticket=` saat membuka stream dan hanya diperiksa saat koneksi dibuka. JWT login tidak pernah masuk ke URL, jadi tidak tercatat di log akses nginx. Alternatif yang ditolak: JWT login di query string (token berumur panjang bocor ke log), cookie HttpOnly (mengubah seluruh alur auth), dan SSE lewat `fetch` dengan header (sambung ulang harus dibuat sendiri).
-- **Sumber notifikasi: trigger database.** Trigger `AFTER UPDATE OF sold, reserved ON ticket_types` memanggil `pg_notify` lewat migrasi. Trigger berjalan di transaksi yang sama untuk semua jalur (pesan, batal, bayar, sweeper, webhook refund, termasuk strategi naive), jadi tidak ada jalur yang bisa terlewat, dan rollback tidak pernah mengirim notifikasi. Postgres menggabungkan notifikasi identik dalam satu transaksi, jadi satu batch sweeper hanya menghasilkan satu notifikasi per event. Alternatifnya, `pg_notify` eksplisit di setiap jalur kode, berisiko ada jalur yang lupa dipasangi.
+Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan frontend tetap harus menangani "tiket baru saja habis".
+
+### 9a. Autentikasi SSE organizer: tiket stream berumur pendek
+
+**Pilihan.** `EventSource` tidak bisa mengirim header `Authorization`. Frontend meminta `POST /organizer/events/:id/stream-ticket` dengan Bearer biasa, lalu mendapat JWT berklaim `scope: "stream"` dan `event_id` yang berlaku 60 detik. Tiket dipakai di `EventSource('/api/organizer/events/:id/stream?ticket=...')`, hanya diperiksa saat koneksi dibuka, dan setiap sambung ulang meminta tiket baru.
+
+**Alasan.** JWT login tidak pernah masuk ke URL, jadi tidak tercatat di log akses nginx. Alternatif yang ditolak: JWT login di query string (token berumur panjang bocor ke log), cookie HttpOnly (mengubah seluruh alur auth), dan SSE lewat `fetch` dengan header (sambung ulang harus dibuat sendiri).
+
+**Detail.** Tiket tidak punya klaim `role`, jadi tidak bisa dipakai sebagai token login, dan token login tidak punya `scope`, jadi tidak bisa dipakai sebagai tiket. Saat stream dibuka, kepemilikan event diperiksa lagi ke database. Tanpa tiket, tiket rusak, kedaluwarsa, atau untuk event lain: 401. Tiket milik organizer yang bukan pemilik: 403.
+
+**Trade-off.** Tiket tetap tercatat di log akses, tapi hanya berlaku 60 detik dan hanya untuk satu event. Karena setiap sambung ulang butuh URL baru, sambung ulang di frontend tetap dibuat sendiri, bukan diserahkan ke `EventSource`. Yang tetap didapat dari `EventSource` adalah parsing stream dan event bernama.
+
+### 9b. Bentuk stream
+
+**Pilihan.**
+- Publik, `GET /events/stream`: event `quota` berisi `{ eventId, ticketTypes: [{ id, remaining }] }` setiap kuota sebuah event berubah. Dipakai halaman daftar dan detail event.
+- Organizer, `GET /organizer/events/:id/stream`: event `quota` berisi `quota`, `sold`, `reserved`, dan `remaining` per tipe, lalu event `orders` sebagai sinyal bahwa daftar pesanan terbaru berubah.
+
+**Alasan.** Publik hanya melihat `remaining`, sama dengan endpoint REST publik. Rincian `sold` dan `reserved` tetap hanya untuk pemilik event.
+
+**Trade-off.** Stream tidak mengirim keadaan awal. Setiap kali stream terbuka, browser memuat ulang data lewat REST, supaya perubahan selama terputus tidak terlewat.
+
+### 9c. Sumber notifikasi: trigger database
+
+**Pilihan.** Migrasi `0003_quota_changed_notify` memasang trigger `AFTER UPDATE OF sold, reserved ON ticket_types` yang memanggil `pg_notify('quota_changed', event_id)`.
+
+**Alasan.** Trigger berjalan di transaksi yang sama untuk semua jalur (pesan atomic dan naive, batal, bayar, sweeper, webhook refund), jadi tidak ada jalur yang bisa terlewat, dan notifikasi hanya terkirim setelah commit. Postgres menggabungkan notifikasi identik dalam satu transaksi, jadi satu batch sweeper hanya menghasilkan satu notifikasi per event. Alternatifnya, `pg_notify` eksplisit di setiap jalur kode, berisiko ada jalur yang lupa dipasangi.
+
+**Trade-off.** Payload hanya `event_id`, jadi penerima membaca counter sendiri. Perubahan status yang tidak menggeser counter tidak memicu apa pun: pesanan EXPIRED atau CANCELLED yang menjadi REFUND_REQUIRED karena webhook terlambat tidak mengirim sinyal `orders`.
+
+### 9d. Penerima dan penggabungan
+
+**Pilihan.** Satu koneksi LISTEN khusus per instance di luar pool, dengan sambung ulang kalau koneksinya putus (jeda 1 detik, berlipat sampai 10 detik). Notifikasi digabung per event dengan jendela 400 ms (trailing): notifikasi pertama membuka jendela, berikutnya ikut, dan saat jendela habis counter dibaca sekali lalu dikirim ke semua pelanggan event itu. Heartbeat tiap 15 detik dan `retry: 3000`.
+
+**Alasan.** LISTEN butuh koneksi khusus, bukan dari pool biasa. Tanpa penggabungan, 200 pesanan menjadi 200 push ke setiap browser.
+
+**Temuan saat verifikasi.** Awalnya counter dibaca lewat pool. Saat k6 mengirim 200 pesanan, kesepuluh koneksi pool terpakai request pesanan, sehingga bacaan counter ikut antre sampai burst hampir selesai: dashboard hanya bergerak 0, 83, lalu 100. Bacaan counter dipindah ke koneksi LISTEN itu sendiri, dan run berikutnya bergerak 16, 35, 65, 100 dalam sekitar satu detik.
+
+**Saat koneksi LISTEN putus.** Semua stream yang terbuka ditutup, dan stream baru ditolak 503 sampai koneksi tersambung lagi. Notifikasi selama putus hilang, jadi stream yang dibiarkan terbuka akan menampilkan angka lama tanpa tanda apa pun. Setelah ditutup, browser menyambung ulang dan memuat ulang datanya, atau beralih ke polling kalau putusnya lebih dari 10 detik.
+
+**Trade-off.** Setiap instance membaca counter sendiri, jadi dengan dua replika satu perubahan berarti dua bacaan. Kalau bacaan counter gagal, kiriman untuk jendela itu hilang sampai perubahan berikutnya.
 
 ---
 
@@ -224,7 +260,7 @@ Query inti kuota tetap ditulis sebagai raw SQL, supaya ORM tidak menyembunyikan 
 
 ## 12. Nginx
 
-**Pilihan.** Nginx dipakai di container web: menyajikan hasil build frontend dan meneruskan `/api` ke API, supaya browser hanya berbicara dengan satu origin dan API tidak perlu CORS. Saat development, Vite melakukan hal yang sama lewat proxy-nya.
+**Pilihan.** Nginx dipakai di container web: menyajikan hasil build frontend dan meneruskan `/api` ke API, supaya browser hanya berbicara dengan satu origin dan API tidak perlu CORS. Saat development, Vite melakukan hal yang sama lewat proxy-nya. Route SSE memakai `proxy_buffering off` supaya setiap pesan langsung diteruskan, dan `proxy_read_timeout 1h` supaya stream yang diam di antara heartbeat tidak diputus.
 
 Load balancing dan rate limit per IP belum dipakai. Nginx hanya layak kalau ada frontend dan dua replika API: satu origin (tanpa CORS), load balancing, dan rate limit per IP. Biayanya satu komponen lagi dan konfigurasi khusus untuk SSE. Bukti bahwa kuota dijaga di database, bukan di memori aplikasi, sebenarnya datang dari dua replika, bukan dari Nginx.
 
