@@ -6,10 +6,15 @@ import {
   insertTicketTypes,
   listEventsByOrganizer,
   listEventsWithTypes,
+  listPaidSales,
   listRecentOrdersForEvent,
+  tallyOrdersByStatus,
 } from "./queries.js";
 import type { CreateEventInput } from "./schemas.js";
 import { toOrganizerEvent, toPublicEvent } from "./views.js";
+
+// A chart needs a shape, not every order; past this many paid orders the oldest are kept.
+const SALES_LIMIT = 2000;
 
 export function createEventsService({ db }: { db: Database }) {
   return {
@@ -44,6 +49,12 @@ export function createEventsService({ db }: { db: Database }) {
       await this.getForOrganizer(id, organizerId);
       const rows = await listRecentOrdersForEvent(db, id, limit);
       return rows.map(({ kind, ...order }) => ({ ...order, ticketType: { kind } }));
+    },
+
+    async analytics(id: string, organizerId: string) {
+      await this.getForOrganizer(id, organizerId);
+      const [statuses, sales] = await Promise.all([tallyOrdersByStatus(db, id), listPaidSales(db, id, SALES_LIMIT)]);
+      return { statuses, sales };
     },
 
     async getForOrganizer(id: string, organizerId: string) {

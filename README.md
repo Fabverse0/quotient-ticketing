@@ -100,6 +100,7 @@ Semua body JSON memakai camelCase, kecuali payload webhook (snake_case). Error s
 | `POST /events` | organizer | Buat event dengan tepat dua tipe tiket (REGULAR dan VIP) |
 | `GET /organizer/events`, `GET /organizer/events/:id` | organizer pemilik | Event milik sendiri dengan `quota`, `sold`, `reserved` |
 | `GET /organizer/events/:id/orders` | organizer pemilik | Pesanan terbaru (`?limit=1..50`) |
+| `GET /organizer/events/:id/analytics` | organizer pemilik | Jumlah pesanan dan kursi per status, dan penjualan lunas dari waktu ke waktu |
 | `POST /organizer/events/:id/stream-ticket`, `GET /organizer/events/:id/stream?ticket=` | organizer pemilik | Tiket stream 60 detik dan SSE dashboard |
 | `POST /orders` | pembeli | Pesan 1 sampai 4 tiket, header `Idempotency-Key` opsional |
 | `GET /orders`, `GET /orders/:id` | pembeli pemilik | Riwayat pesanan, dan satu pesanan beserta tiketnya |

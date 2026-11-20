@@ -1,6 +1,6 @@
 import { asc, eq, sql } from "drizzle-orm";
 import type { Executor } from "../../shared/db/client.js";
-import { events, ticketTypes } from "../../shared/db/schema.js";
+import { events, orderStatus, ticketTypes } from "../../shared/db/schema.js";
 import type { CreateEventInput } from "./schemas.js";
 
 export type EventRow = typeof events.$inferSelect;
@@ -92,6 +92,36 @@ export async function listRecentOrdersForEvent(db: Executor, eventId: string, li
     JOIN users u ON u.id = o.buyer_id
     WHERE o.event_id = ${eventId}
     ORDER BY o.created_at DESC, o.id DESC
+    LIMIT ${limit}
+  `);
+  return rows;
+}
+
+// Every status appears, in the order of the state machine, even with no orders in it.
+export async function tallyOrdersByStatus(db: Executor, eventId: string) {
+  const { rows } = await db.execute<{ status: string; orders: number; quantity: number }>(sql`
+    SELECT status, COUNT(*)::int AS orders, COALESCE(SUM(quantity), 0)::int AS quantity
+    FROM orders
+    WHERE event_id = ${eventId}
+    GROUP BY status
+  `);
+  const found = new Map(rows.map((r) => [r.status, r]));
+  return orderStatus.enumValues.map((status) => ({
+    status,
+    orders: found.get(status)?.orders ?? 0,
+    quantity: found.get(status)?.quantity ?? 0,
+  }));
+}
+
+// Seats sold per paid order, oldest first, for the sales-over-time chart.
+export async function listPaidSales(db: Executor, eventId: string, limit: number) {
+  // Raw SQL returns timestamps as Postgres text, so the ISO string is built here.
+  const { rows } = await db.execute<{ at: string; kind: "REGULAR" | "VIP"; quantity: number }>(sql`
+    SELECT to_char(o.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "at", tt.kind, o.quantity
+    FROM orders o
+    JOIN ticket_types tt ON tt.id = o.ticket_type_id
+    WHERE o.event_id = ${eventId} AND o.status = 'PAID'
+    ORDER BY o.paid_at, o.id
     LIMIT ${limit}
   `);
   return rows;
