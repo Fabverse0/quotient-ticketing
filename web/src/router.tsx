@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { OrganizerShell } from "./components/OrganizerShell";
 import { RequireRole } from "./components/RequireRole";
@@ -10,6 +10,7 @@ import { EventDetailPage } from "./pages/EventDetailPage";
 import { EventsPage } from "./pages/EventsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrganizerEventsPage } from "./pages/OrganizerEventsPage";
+import { OverviewPage } from "./pages/OverviewPage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { TicketsPage } from "./pages/TicketsPage";
@@ -58,8 +59,7 @@ export const router = createBrowserRouter([
       </RequireRole>
     ),
     children: [
-      // Until the overview exists, the first page of the area is the event list.
-      { index: true, element: <Navigate to="/organizer/event" replace /> },
+      { index: true, element: <OverviewPage /> },
       { path: "analitik", element: <AnalyticsRedirect /> },
       { path: "event", element: <OrganizerEventsPage /> },
       { path: "event/baru", element: <CreateEventPage /> },
