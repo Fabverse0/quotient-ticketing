@@ -255,7 +255,6 @@ function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }
   );
 }
 
-// What each order status is called and how its bar is coloured.
 const STATUS: Record<Status, { label: string; fill: string }> = {
   PENDING: { label: "Menunggu bayar", fill: "bg-ochre" },
   PAID: { label: "Lunas", fill: "bg-inkblue" },
