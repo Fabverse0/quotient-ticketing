@@ -282,7 +282,7 @@ Catatan kalau dua replika dipakai: saat ini setiap instance menjalankan migrasi 
 
 **Modul per domain** (auth, events, orders, payments, tickets), dan di dalam tiap modul ada lapisan handler, service, queries, dan views. Batas transaksi selalu ada di service. Query menerima `Executor` (database atau transaksi), jadi bisa disusun di dalam satu `db.transaction`.
 
-**Alur kerja.** Satu branch per modul, atomic commit dengan Conventional Commits, PR di-merge dengan rebase merge supaya riwayat per commit tetap terlihat di `main`. CI menjalankan test di setiap push dan PR, lalu membangun image dan mendorongnya ke GHCR dengan tag commit SHA di setiap push ke `main`.
+**Alur kerja.** Satu branch per modul, atomic commit dengan Conventional Commits, PR di-merge dengan rebase merge supaya riwayat per commit tetap terlihat di `main`. CI menjalankan typecheck dan test API serta typecheck dan build web di setiap push dan PR (web belum punya test), lalu membangun image dan mendorongnya ke GHCR dengan tag commit SHA di setiap push ke `main`.
 
 **Image di GHCR hanya untuk API.** CI mendorong image API dengan tag commit (`sha-<short>`) di setiap push ke `main`. `docker-compose.yml` tidak menarik image itu, melainkan membangun `api` dan `web` dari source. Alasannya: penguji yang meng-clone repo cukup menjalankan `docker compose up` tanpa akses registry dan tanpa tahu tag mana yang dipakai, dan yang dijalankan selalu sama dengan source yang sedang dilihat. Image web tidak didorong karena belum ada target deploy yang membutuhkannya (deploy online opsional dan dikerjakan paling akhir). Kalau deploy ditambahkan, compose untuk deploy perlu menunjuk ke image dari GHCR dan image web ikut didorong.
 
