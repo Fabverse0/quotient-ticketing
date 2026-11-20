@@ -36,7 +36,7 @@ Nama "Quotient" berarti hasil bagi: kuota yang terbatas dibagi tepat ke banyak p
 | Test | Vitest + Testcontainers (Postgres asli, bukan mock) |
 | Uji beban | k6 |
 | Frontend | React + Vite + TanStack Query + Tailwind |
-| Proxy | Nginx (opsional, dipakai jika frontend + 2 replika jadi) |
+| Proxy | Nginx di container web (satu origin dan SSE). Dua replika API belum dikerjakan |
 | CI/CD | GitHub Actions, image ke GHCR dengan tag commit SHA |
 
 Tidak memakai Redis. Tidak memakai microservice. Supabase hanya opsional untuk deploy Postgres, bukan untuk lokal.
@@ -110,7 +110,7 @@ Orders:
 - `created_at` dan `expires_at` diisi dari `clock`, bukan `now()` database, supaya selisihnya tepat 15 menit dan test dengan fake clock konsisten.
 - Strategi kuota dipilih lewat `QUOTA_STRATEGY` dan masuk ke `createApp({ quotaStrategy })` sebagai dependensi opsional (default `atomic`). Naive membaca counter lalu menulis nilai absolut, sengaja rentan lost update. Oversell-nya tidak tertangkap CHECK karena counter tetap terlihat valid, hanya terlihat dari `reserved` dibanding `SUM(quantity)` pesanan PENDING.
 - `NAIVE_RACE_DELAY_MS` (default 0, 0 sampai 1000) menambah jeda di antara baca dan tulis counter, **hanya di strategi naive**, untuk meniru logika aplikasi di antara pengecekan dan penulisan. Jeda ini tidak menciptakan bug; lost update sudah ada tanpa jeda, jeda hanya membuatnya muncul di setiap run alih-alih bergantung pada keberuntungan timing. Atomic tidak pernah menerima jeda (`createQuotaStrategy` hanya meneruskannya ke naive), dan test memastikan request atomic tetap selesai jauh di bawah jedanya. Demo memakai 30 ms.
-- Pengembalian kuota (cancel, nanti expire) selalu relatif (`reserved = reserved - q`) di strategi apa pun.
+- Pengembalian kuota (cancel, sweeper, dan webhook terlambat) selalu relatif (`reserved = reserved - q`) di strategi apa pun.
 - Idempotency-Key opsional (1 sampai 255 karakter), unik per buyer. `request_hash` adalah sha256 dari body yang sudah di-parse dengan urutan field tetap. Body sama: pesanan lama dengan 200. Body beda: 422 `IDEMPOTENCY_KEY_REUSED`. Key disimpan di transaksi yang sama dengan pesanan, jadi request yang gagal tidak menyimpan key dan retry diproses ulang. Replay tetap jalan walaupun event sudah dimulai.
 - Cancel memakai `UPDATE ... WHERE id AND buyer_id AND status = 'PENDING' AND expires_at > now RETURNING`, lalu mengurangi `reserved` hanya kalau dapat baris. Kalau tidak dapat baris: tidak ada atau milik orang lain 404 `ORDER_NOT_FOUND`, masih PENDING (berarti lewat `expires_at`) 409 `ORDER_EXPIRED` dan dibiarkan untuk sweeper, status lain 409 `ORDER_NOT_PENDING`.
 - Pesanan orang lain di `GET /orders/:id` dan cancel mendapat 404, bukan 403, karena keberadaan pesanan bersifat privat. `GET /orders` urut `created_at` turun, tanpa paginasi.
@@ -176,7 +176,7 @@ Frontend (web/):
 - Satu origin: frontend selalu memanggil `/api/...`. Di container, nginx (`nginxinc/nginx-unprivileged:1.28.0-alpine`, port 8080) meneruskan `/api/` ke `http://api:3000/` dengan prefix dibuang; di development, Vite `server.proxy` melakukan hal yang sama. API tidak memakai CORS.
 - Token JWT di memori dan `localStorage` (`quotient.token`), dicatat di DECISIONS.md sebagai risiko XSS. Peran diambil dari `GET /auth/me`, bukan dari decode token di browser. Respons 401 untuk token tersimpan (selain `INVALID_CREDENTIALS`) mengakhiri sesi.
 - Kode error API dipetakan ke kalimat DESIGN.md di `web/src/api/errors.ts`. `VALIDATION_ERROR` dipecah per kolom dari pesan `field: pesan; field: pesan`.
-- Routing per peran: belum masuk ke `/masuk`, buyer ke `/` (daftar event dari `GET /events`), organizer ke `/organizer`, peran yang salah ke halaman awal perannya. Dashboard masih kerangka berlabel jujur. Navigasi hanya menautkan halaman yang sudah ada.
+- Routing per peran: belum masuk ke `/masuk`, buyer ke `/` (daftar event dari `GET /events`), organizer ke `/organizer`, peran yang salah ke halaman awal perannya. Navigasi hanya menautkan halaman yang sudah ada.
 - Semua link, tab, dan tombol punya target sentuh minimal 44px; garis bawah tautan ada di `span` label, bukan di kotak yang lebih tinggi.
 - Compose: service `web` di port host 8080 (`WEB_PORT`), start setelah `api` sehat. Healthcheck memakai `127.0.0.1`, karena `localhost` di container di-resolve ke IPv6 sementara nginx hanya mendengarkan IPv4. `tools/demo.mjs` hanya menyalakan `api` supaya tidak mengambil port 8080 dari stack dev.
 - Screenshot dan snapshot Playwright MCP tersimpan di `.playwright-mcp/` (di-gitignore).
@@ -240,7 +240,7 @@ Lingkungan lokal dan CI:
 1. Strategi kuota `QUOTA_STRATEGY=naive|atomic` untuk membuktikan versi naif bisa oversell.
 2. Header `Idempotency-Key` di endpoint buat pesanan.
 3. Invariant checker (skrip dan endpoint admin).
-4. Simulator penyedia pembayaran dengan mode kacau (webhook ganda, terlambat, tidak berurutan).
+4. Simulator penyedia pembayaran dengan mode kacau (webhook ganda, terlambat, tidak berurutan). Belum dibuat; kasus itu diuji lewat test di `payments-webhook.test.ts`.
 5. Uji 200 pesanan paralel untuk kuota 100, hasil tepat 100 terjual.
 
 ## Struktur repo
@@ -267,12 +267,12 @@ quotient-ticketing/
 │   │   ├── realtime/
 │   │   └── shared/          (db, config, errors, clock)
 │   └── tests/
-├── web/
-├── nginx/                   (opsional)
+├── web/                     (termasuk nginx.conf)
 ├── tools/
+│   ├── demo.mjs             (naive vs atomic dalam satu perintah)
+│   ├── demo-data/
 │   ├── load-test/
-│   ├── invariant-check/
-│   └── payment-simulator/
+│   └── invariant-check/
 └── docs/
     ├── RESEARCH.md
     └── diagrams/
@@ -288,7 +288,7 @@ Batas transaksi ada di `service`. Handler hanya urusan HTTP. Query penting ada d
 4. Uji 200 paralel (k6), strategi naive vs atomic, invariant checker
 5. Webhook idempoten, Idempotency-Key
 6. Frontend (pembeli + dashboard organizer), SSE
-7. Nginx + 2 replika, simulator kacau, deploy
+7. Nginx (sudah di container web), 2 replika, simulator kacau, deploy (tiga terakhir belum dikerjakan)
 8. README, DECISIONS.md, diagram, latihan demo
 
 ## Skill dan plugin
