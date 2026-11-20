@@ -191,6 +191,15 @@ Frontend pembeli (web/):
 - QR memakai `uqr` 0.1.3 (sekitar 4,3 KB gzip): matriksnya digambar sendiri sebagai satu path SVG dengan warna token, bukan string SVG dari library. Isi QR adalah kode tiket. "Lot" di kartu tiket adalah 6 karakter pertama ID pesanan, "Kursi n dari m" adalah `seq` dari jumlah tiket pesanan itu.
 - Data demo: `npm --prefix api run demo-data` (lihat DECISIONS.md bagian 15). Login demo: `organizer@quotient.local` / `organizer-demo-pass`, dan `pembeli1` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
 
+Organizer (API dan web):
+- `GET /organizer/events`: event milik pemanggil beserta counter (`quota`, `sold`, `reserved`, `remaining`), urut `startsAt`. Route `/organizer/events` semuanya khusus organizer.
+- `GET /organizer/events/:id/orders?limit=` (1 sampai 50, default 20, di luar itu 400): pesanan terbaru event itu, `buyerName` saja tanpa email atau id pembeli. Bukan pemilik 403, event tidak ada 404 `EVENT_NOT_FOUND`.
+- `GET /admin/invariants` menerima `?eventId=` (uuid, 400 kalau bukan) yang membatasi pemeriksaan ke satu event dan hanya untuk pemiliknya (403, 404 seperti di atas). Tanpa parameter tetap global.
+- Route web organizer: `/organizer` (event saya), `/organizer/event/baru` (form), `/organizer/event/:id` (dashboard). Navigasi organizer: Event saya, Buat event.
+- Form buat event memvalidasi per kolom di klien (nama, tempat, waktu, harga dan kuota bilangan bulat dalam batas API) dan menganggap waktu selalu WIB.
+- Dashboard: tab tipe tiket (panah kiri dan kanan berpindah, roving tabindex), empat angka Marcellus, SeatMap besar yang membedakan terjual dan ditahan, panel invariant dengan tombol manual, dan pesanan terbaru. Angka dimuat ulang tiap 10 detik sampai modul realtime.
+- Getar panel invariant dijalankan dari `useEffect` setelah render, karena React menulis ulang `className` saat panel berubah merah dan itu membatalkan getar yang dimulai lebih awal. Kolom grid dashboard memakai `minmax(0,1fr)` supaya isi panel tidak melebarkan trek lewat layar.
+
 Urutan lock (wajib untuk payments dan sweeper):
 - Baris `orders` dulu, baru `ticket_types`. Cancel sudah begitu. Buat pesanan menyentuh `ticket_types` sebelum insert order, tapi baris order itu baru dan tidak bisa diperebutkan.
 - Sweeper yang memproses banyak pesanan sekaligus mengurutkan update `ticket_types` berdasarkan `id`, supaya dua sweeper atau sweeper dan transaksi lain tidak saling menunggu dalam lingkaran (deadlock).
