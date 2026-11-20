@@ -8,7 +8,7 @@ interface QuotaMessage {
 }
 
 // Keeps the cached event list and event details up to date from /events/stream.
-// Returns true while the stream is down and the page should poll instead.
+// `polling` is true while the stream is down and the page should poll instead.
 export function usePublicQuota() {
   const queryClient = useQueryClient();
 

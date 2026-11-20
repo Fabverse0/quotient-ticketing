@@ -36,7 +36,7 @@ export function DashboardPage() {
 
 function Dashboard({ event }: { event: OrganizerEvent }) {
   const [index, setIndex] = useState(0);
-  const polling = useOrganizerStream(event.id);
+  const { polling, stoppedBy } = useOrganizerStream(event.id);
   // A second observer of the page's query, so it polls only while the stream is down.
   useQuery({
     queryKey: ["organizer-event", event.id],
@@ -54,8 +54,17 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
       <h1 className="mt-2 font-display text-title text-ink">{event.title}</h1>
       <p className="mt-1 text-small text-quiet">
         {formatDateTime(event.startsAt)} · {event.venue} ·{" "}
-        {polling ? "sambungan langsung terputus, diperbarui tiap 10 detik" : "diperbarui langsung"}
+        {stoppedBy
+          ? "pembaruan langsung berhenti"
+          : polling
+            ? "sambungan langsung terputus, diperbarui tiap 10 detik"
+            : "diperbarui langsung"}
       </p>
+      {stoppedBy && (
+        <p role="alert" className="mt-2 text-small text-oxblood">
+          Angka di halaman ini tidak diperbarui lagi. {messageFor(stoppedBy)}
+        </p>
+      )}
 
       <div
         role="tablist"

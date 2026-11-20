@@ -53,7 +53,7 @@ function EventTile({ event }: { event: PublicEvent }) {
 }
 
 export function EventsPage() {
-  const polling = usePublicQuota();
+  const { polling } = usePublicQuota();
   const events = useQuery({ queryKey: ["events"], queryFn: listEvents, refetchInterval: polling ? POLL_MS : false });
 
   return (
