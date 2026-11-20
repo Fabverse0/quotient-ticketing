@@ -37,6 +37,8 @@ Satu perintah itu membangun dan menyalakan Postgres, API (migrasi dan akun organ
 | API langsung | http://localhost:3000 (cek dengan `/health`) |
 | Postgres | `localhost:5433`, user, password, dan database `quotient` |
 
+Port Postgres dan API hanya dibuka di `127.0.0.1`, jadi tidak terjangkau dari jaringan. Hanya aplikasi di port 8080 yang dibuka ke luar mesin.
+
 Akun bawaan untuk development (rahasia dan password ini hanya untuk lokal, jangan dipakai di tempat lain):
 
 | Peran | Email | Password |
@@ -44,7 +46,7 @@ Akun bawaan untuk development (rahasia dan password ini hanya untuk lokal, janga
 | Organizer | `organizer@quotient.local` | `organizer-demo-pass` |
 | Pembeli | daftar sendiri di `/daftar` | bebas, minimal 8 karakter |
 
-Nilai bawaan bisa diganti lewat variabel lingkungan atau file `.env`; daftar lengkapnya ada di [.env.example](.env.example).
+Nilai bawaan bisa diganti lewat variabel lingkungan atau file `.env`; daftar lengkapnya ada di [.env.example](.env.example). Rahasia bawaan (`JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET`, berawalan `dev-only-`) ditolak API saat `NODE_ENV=production`, jadi tidak bisa terbawa ke lingkungan nyata tanpa sengaja.
 
 Alur singkat untuk dicoba: masuk sebagai organizer, buat event di **Buat event**, lalu daftar sebagai pembeli di jendela lain, pesan tiket, dan bayar. Angka sisa kuota di dashboard organizer bergerak langsung selama pesanan masuk.
 
@@ -83,6 +85,43 @@ Pembayaran disimulasikan dengan tiga cara. Hasilnya sama: pesanan menjadi `PAID`
    ```
 
    Mengirim `event_id` yang sama lagi dibalas `duplicate: true` tanpa memproses ulang. Webhook yang datang setelah pesanan kedaluwarsa menandai pesanan `REFUND_REQUIRED`. Alurnya ada di [docs/diagrams/webhook-sequence.md](docs/diagrams/webhook-sequence.md).
+
+## Ringkasan API
+
+Semua body JSON memakai camelCase, kecuali payload webhook (snake_case). Error selalu berbentuk `{ "error": { "code": "...", "message": "..." } }`. Token dikirim sebagai `Authorization: Bearer <token>`.
+
+| Endpoint | Akses | Fungsi |
+|---|---|---|
+| `GET /health` | publik | Status API dan database |
+| `POST /auth/register`, `POST /auth/login` | publik | Daftar sebagai pembeli, masuk |
+| `GET /auth/me` | login | Profil dan peran dari token |
+| `GET /events`, `GET /events/:id` | publik | Daftar event dan sisa kuota (`remaining`) per tipe |
+| `GET /events/stream` | publik | SSE: sisa kuota berubah langsung |
+| `POST /events` | organizer | Buat event dengan tepat dua tipe tiket (REGULAR dan VIP) |
+| `GET /organizer/events`, `GET /organizer/events/:id` | organizer pemilik | Event milik sendiri dengan `quota`, `sold`, `reserved` |
+| `GET /organizer/events/:id/orders` | organizer pemilik | Pesanan terbaru (`?limit=1..50`) |
+| `POST /organizer/events/:id/stream-ticket`, `GET /organizer/events/:id/stream?ticket=` | organizer pemilik | Tiket stream 60 detik dan SSE dashboard |
+| `POST /orders` | pembeli | Pesan 1 sampai 4 tiket, header `Idempotency-Key` opsional |
+| `GET /orders`, `GET /orders/:id` | pembeli pemilik | Riwayat pesanan, dan satu pesanan beserta tiketnya |
+| `POST /orders/:id/cancel` | pembeli pemilik | Batalkan pesanan PENDING, kuota langsung kembali |
+| `POST /orders/:id/pay` | pembeli pemilik | Simulasi bayar. Tidak ada saat `NODE_ENV=production` |
+| `GET /tickets` | pembeli | Semua tiket yang sudah terbit |
+| `POST /webhooks/payment` | penyedia, bertanda tangan | Webhook pembayaran |
+| `GET /admin/invariants` | organizer | Laporan invariant (`?eventId=` membatasi ke satu event) |
+
+Kode error yang dipakai:
+
+| Status | Kode |
+|---|---|
+| 400 | `VALIDATION_ERROR`, `INVALID_JSON` |
+| 401 | `UNAUTHORIZED`, `INVALID_TOKEN`, `INVALID_CREDENTIALS`, `INVALID_SIGNATURE` |
+| 403 | `FORBIDDEN` |
+| 404 | `NOT_FOUND`, `EVENT_NOT_FOUND`, `TICKET_TYPE_NOT_FOUND`, `ORDER_NOT_FOUND` |
+| 409 | `EMAIL_TAKEN`, `EVENT_ALREADY_STARTED`, `BUYER_LIMIT_EXCEEDED`, `QUOTA_EXHAUSTED`, `ORDER_NOT_PENDING`, `ORDER_EXPIRED` |
+| 413 | `PAYLOAD_TOO_LARGE` |
+| 422 | `IDEMPOTENCY_KEY_REUSED` |
+| 500 | `INTERNAL_ERROR` |
+| 503 | `DATABASE_BUSY` (tunggu koneksi atau lock lewat batas), `DATABASE_UNAVAILABLE` |
 
 ## Data demo
 
@@ -136,7 +175,7 @@ Yang terlihat:
 - **Naive meloloskan semua 200 pesanan untuk kuota 100**, sementara counter `reserved` hanya tercatat 17 sampai 24. Hampir setiap transaksi membaca angka lama lalu menimpa tulisan transaksi lain.
 - **CHECK `sold + reserved <= quota` tidak menangkapnya**, karena counter justru terlalu kecil. Oversell hanya terlihat dari invariant checker, yang membandingkan kuota dengan pesanan yang benar-benar tercatat: 200 pesanan aktif untuk kuota 100, dan `reserved` 17 sampai 24 untuk 200 pesanan PENDING.
 
-Ringkasan tiap run tersimpan di `tools/load-test/results/` (di-gitignore). Langkah-langkahnya bisa dijalankan satu per satu, lihat [tools/load-test/README.md](tools/load-test/README.md).
+Ringkasan tiap run tersimpan di `tools/load-test/results/` (di-gitignore). Langkah-langkahnya bisa dijalankan satu per satu terhadap stack dev (seed 200 pembeli, k6 lewat Docker, lalu invariant checker), lihat [tools/load-test/README.md](tools/load-test/README.md).
 
 ### Invariant checker
 
@@ -151,7 +190,8 @@ Memeriksa enam hal: `reserved` dan `sold` sesuai dengan pesanan PENDING dan PAID
 GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)):
 
 - **`test`**: di setiap push dan pull request. Menjalankan pemeriksaan tipe (`tsc`) dan seluruh test dengan Testcontainers di Postgres asli.
-- **`build-and-push`**: hanya pada push ke `main`, setelah `test` lulus. Membangun image API dan mendorongnya ke GitHub Container Registry.
+- **`web`**: di setiap push dan pull request. Menjalankan typecheck dan build frontend (frontend belum punya test).
+- **`build-and-push`**: hanya pada push ke `main`, setelah `test` dan `web` lulus. Membangun image API dan mendorongnya ke GitHub Container Registry.
 
 Image ada di `ghcr.io/fabverse0/quotient-ticketing`, dengan dua tag: `sha-<7 karakter commit>` (tag yang tidak berubah, untuk menunjuk versi tertentu) dan `latest`.
 
