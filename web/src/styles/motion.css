@@ -134,6 +134,12 @@
   transition: transform var(--dur-smooth) var(--ease-smooth);
 }
 
+/* A ring arc draws itself by growing its dash. stroke-dasharray is not a transform,
+   but it is the only way to draw a partial circle, and the arc is a few pixels wide. */
+.ring-arc {
+  transition: stroke-dasharray var(--dur-smooth) var(--ease-smooth);
+}
+
 .soft {
   transition:
     background-color var(--dur-fast) var(--ease-smooth),
