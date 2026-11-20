@@ -36,9 +36,14 @@ export function Layout() {
             </>
           )}
           {user?.role === "organizer" && (
-            <NavLink to="/organizer" className={navLink}>
-              <span className="link-underline">Dashboard</span>
-            </NavLink>
+            <>
+              <NavLink to="/organizer" end className={navLink}>
+                <span className="link-underline">Event saya</span>
+              </NavLink>
+              <NavLink to="/organizer/event/baru" className={navLink}>
+                <span className="link-underline">Buat event</span>
+              </NavLink>
+            </>
           )}
           {user ? (
             <>
