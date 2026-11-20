@@ -1,6 +1,6 @@
 # ERD Quotient
 
-Sumber kebenaran skema adalah `api/migrations/0000_init.sql`. Diagram ini harus dicocokkan ulang setiap migrasi berubah.
+Sumber kebenaran skema adalah folder `api/migrations/` (`0000` sampai `0003`). Diagram ini harus dicocokkan ulang setiap migrasi berubah.
 
 ```mermaid
 erDiagram
@@ -73,10 +73,26 @@ erDiagram
         text event_id PK
         text event_type
         jsonb payload
-        uuid order_id FK
+        uuid order_id FK "NULL kalau pesanan tidak ada"
+        webhook_outcome outcome "NULL hanya di dalam transaksi webhook"
         timestamptz received_at
     }
 ```
+
+## Enum
+
+| Enum | Nilai | Migrasi |
+|---|---|---|
+| `user_role` | `buyer`, `organizer` | 0000 |
+| `ticket_kind` | `REGULAR`, `VIP` | 0000 |
+| `order_status` | `PENDING`, `PAID`, `CANCELLED`, `EXPIRED`, `REFUND_REQUIRED` | 0000 |
+| `webhook_outcome` | `PAID`, `ALREADY_PAID`, `REFUND_REQUIRED`, `ALREADY_REFUND_REQUIRED`, `AMOUNT_MISMATCH`, `ORDER_NOT_FOUND`, `PAYMENT_FAILED`, `IGNORED` | 0001 membuat enum dan kolom `outcome`, 0002 menambah `IGNORED` |
+
+## Trigger
+
+| Trigger | Tabel | Fungsi |
+|---|---|---|
+| `ticket_types_quota_changed`: `AFTER UPDATE OF sold, reserved ... FOR EACH ROW` | `ticket_types` | Memanggil `notify_quota_changed()`, yaitu `pg_notify('quota_changed', event_id)`. Notifikasi terkirim hanya setelah commit, dan notifikasi identik dalam satu transaksi digabung Postgres (migrasi 0003) |
 
 ## Constraint yang tidak terlihat di diagram
 
