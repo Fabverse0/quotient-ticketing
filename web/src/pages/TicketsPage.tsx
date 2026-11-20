@@ -53,7 +53,7 @@ export function TicketsPage() {
         </PageMessage>
       )}
       {tickets.data?.length === 0 && (
-        <PageMessage>
+        <PageMessage ornament>
           Tiket yang kamu bayar akan muncul di sini.{" "}
           <Link to="/" className="link-underline text-ink">
             Lihat event

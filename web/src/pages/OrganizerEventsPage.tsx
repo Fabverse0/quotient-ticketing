@@ -36,7 +36,7 @@ export function OrganizerEventsPage() {
           {messageFor(events.error)}
         </PageMessage>
       )}
-      {events.data?.length === 0 && <PageMessage>Belum ada event. Buat event pertamamu.</PageMessage>}
+      {events.data?.length === 0 && <PageMessage ornament>Belum ada event. Buat event pertamamu.</PageMessage>}
       {events.data && events.data.length > 0 && (
         <ul className="flex flex-col border-t border-mist">
           {events.data.map((event) => {

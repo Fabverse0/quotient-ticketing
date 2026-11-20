@@ -68,7 +68,7 @@ export function EventsPage() {
           {messageFor(events.error)}
         </PageMessage>
       )}
-      {events.data?.length === 0 && <PageMessage>Belum ada event yang dibuka. Cek lagi nanti.</PageMessage>}
+      {events.data?.length === 0 && <PageMessage ornament>Belum ada event yang dibuka. Cek lagi nanti.</PageMessage>}
       {events.data && events.data.length > 0 && (
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {events.data.map((event, index) => (

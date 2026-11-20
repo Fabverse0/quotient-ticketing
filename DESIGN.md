@@ -67,7 +67,7 @@ Skala:
 - Judul pita gelap: Marcellus 40px, kapital, `letter-spacing: 0.06em`
 - Angka dashboard: Marcellus 44px
 
-Bold (700) hanya untuk harga dan tombol utama. Semua angka memakai `font-variant-numeric: tabular-nums`.
+Bold (700) hanya untuk harga dan tombol utama. Tulisan QUOTIENT di logo adalah pengecualian: Marcellus kapital yang diubah menjadi path dan ditebalkan, bukan teks, lihat bagian Logo. Semua angka memakai `font-variant-numeric: tabular-nums`.
 
 ## Bentuk dan ruang
 
@@ -86,12 +86,13 @@ Bold (700) hanya untuk harga dan tombol utama. Semua angka memakai `font-variant
 - **Peta kursi**: satu kotak kecil per kursi. Arang untuk terjual, umber untuk ditahan, kosong dengan border tipis untuk tersedia.
 - **Pemilih dosis**: empat kotak bersebelahan (1, 2, 3, 4) untuk jumlah tiket, langsung memperlihatkan batas 4 tiket.
 - **Segel LUNAS**: lingkaran ganda umber yang sedikit miring, hanya di tiket yang sudah lunas.
+- **Ornamen tiket**: tiket dengan lekukan di kedua sisi, perforasinya menjadi garis tanda bagi. Versi garis tipis berwarna ash untuk state kosong (belum ada event, pesanan, atau tiket). Dipakai dengan `currentColor`, jangan diwarnai dengan warna status.
 - **Label kecil bernomor dan kapital** seperti "No. 01", "Lot 2026/12", "Formularium pertunjukan".
 
 ## Halaman
 
 ### Navigasi
-Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan, 14px: pembeli melihat Event, Pesanan, Tiket saya, dan Keluar; organizer melihat Event saya, Buat event, dan Keluar; tamu melihat Event dan Masuk; nama akun tampil di layar lebar, warna slate, tanpa latar dan tanpa border.
+Logo Quotient di kiri: simbol, dan mulai lebar `sm` ditambah tulisan QUOTIENT. Di ponsel hanya simbol. Tautan teks di kanan, 14px: pembeli melihat Event, Pesanan, Tiket saya, dan Keluar; organizer melihat Event saya, Buat event, dan Keluar; tamu melihat Event dan Masuk; nama akun tampil di layar lebar, warna slate, tanpa latar dan tanpa border.
 
 ### Daftar event (pembeli)
 - Paragraf pembuka sebagai hero, tanpa judul besar dan tanpa tombol.
@@ -177,7 +178,7 @@ Web harus ringan, termasuk di ponsel kelas menengah.
 
 - Semua nilai desain (warna, font, sudut, bayangan, durasi animasi) disimpan sebagai token di satu file, misalnya `web/src/styles/tokens.css`, atau di tema Tailwind kalau memakai Tailwind.
 - Komponen tidak boleh menulis nilai mentah seperti `#f4f3f1` atau `5px`, selalu lewat token.
-- Komponen dasar (Button, Field, StatusLabel, Tile, SeatMap, DoseSelector, Seal, LiveNumber, Reveal) dibuat sekali dan dipakai ulang, supaya perubahan desain cukup dilakukan di satu tempat.
+- Komponen dasar (Button, Field, StatusLabel, Tile, SeatMap, DoseSelector, Seal, LiveNumber, Reveal, Logo) dibuat sekali dan dipakai ulang, supaya perubahan desain cukup dilakukan di satu tempat.
 
 ## State wajib
 
@@ -203,4 +204,12 @@ Setiap tampilan data punya state kosong, loading, dan error. Kalimat untuk state
 
 ## Logo
 
-Belum ada logo. Pakai monogram "Q" dalam lingkaran tipis dan nama "Quotient" sebagai teks dalam Marcellus. Jangan membuat logo lain tanpa persetujuan.
+Logo membawa satu gagasan: hasil bagi. Satu cincin dibagi empat sama besar, tiga bagian tinggal di tempatnya, dan yang keempat pergi sebagai ekor huruf Q, seperti satu kursi yang diambil pembeli. Angka empat sama dengan batas empat tiket per pembeli.
+
+- **Simbol**: tiga bagian cincin berwarna `ink`, ekor berwarna `umber`. Di ukuran 16 sampai 48 piksel (favicon) dipakai versi kecil dengan cincin lebih tebal dan celah lebih lebar.
+- **Tulisan**: QUOTIENT dalam Marcellus kapital berspasi 0,06 em, diubah menjadi path dan ditebalkan 34 unit dari 2.048 per sisi supaya tebal tanpa font lain. Hanya dipakai di logo. Teks "Quotient" di tempat lain tetap Marcellus biasa.
+- **Lockup**: simbol di kiri, tulisan di kanan, tinggi simbol sekitar 2,2 kali tinggi huruf kapital.
+- **Varian**: putih untuk latar gelap (pita gelap detail event), hitam atau arang untuk satu warna.
+- **Di kode**: `web/src/components/Logo.tsx` (`Logo`, `LogoMark`, `Wordmark`, `TicketOrnament`), bentuknya dari `logoShapes.ts` yang dibuat dari `docs/logo/final/`.
+- Sumber, ekspor, aturan pakai, dan lisensi font ada di `docs/logo/README.md`. Enam konsep awal ada di `docs/logo/concepts/`.
+- Jangan membuat logo lain tanpa persetujuan.
