@@ -1,11 +1,16 @@
-import { asc, eq } from "drizzle-orm";
-import type { Executor } from "../shared/db/client.js";
-import { ticketTypes } from "../shared/db/schema.js";
+import type { Client } from "pg";
 
-export function readCounters(db: Executor, eventId: string) {
-  return db
-    .select({ id: ticketTypes.id, quota: ticketTypes.quota, sold: ticketTypes.sold, reserved: ticketTypes.reserved })
-    .from(ticketTypes)
-    .where(eq(ticketTypes.eventId, eventId))
-    .orderBy(asc(ticketTypes.kind));
+export interface CounterRow {
+  id: string;
+  quota: number;
+  sold: number;
+  reserved: number;
+}
+
+export async function readCounters(client: Client, eventId: string): Promise<CounterRow[]> {
+  const { rows } = await client.query<CounterRow>(
+    "SELECT id, quota, sold, reserved FROM ticket_types WHERE event_id = $1 ORDER BY kind",
+    [eventId],
+  );
+  return rows;
 }

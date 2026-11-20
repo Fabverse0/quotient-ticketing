@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { createRealtimeHub } from "../src/realtime/hub.js";
+import { LISTENER_APPLICATION_NAME } from "../src/realtime/listener.js";
 import { issueStreamTicket } from "../src/realtime/ticket.js";
 import { systemClock } from "../src/shared/clock.js";
 import { TEST_JWT_SECRET, buyerToken, call, organizerToken, testAuthSettings } from "./helpers/auth.js";
@@ -19,7 +21,7 @@ let mineToo: TestEvent;
 
 beforeAll(async () => {
   testDb = await startTestDatabase();
-  hub = createRealtimeHub({ db: testDb.db, connectionString: testDb.databaseUrl, heartbeatMs: 200, listenRetryMs: 100 });
+  hub = createRealtimeHub({ connectionString: testDb.databaseUrl, heartbeatMs: 200, listenRetryMs: 100 });
   await hub.start();
   app = createApp({ db: testDb.db, clock: systemClock, auth: testAuthSettings, realtime: hub });
   owner = await organizerToken(testDb.db, app);
@@ -83,6 +85,23 @@ describe("GET /events/stream", () => {
     const messages = stream.messages.filter(quotaFor(burst.id));
     expect(messages).toHaveLength(1);
     expect(JSON.parse(messages[0]!.data!).ticketTypes[0]).toEqual({ id: burst.regular.id, remaining: 97 });
+    await stream.close();
+  });
+
+  it("still pushes while every pooled connection is busy", async () => {
+    const stream = readSse(await app.request("/events/stream"));
+    await stream.waitFor((m) => m.retry === 3000);
+
+    // The test pool has 5 connections; all of them sleep while the counter moves.
+    const busy = Array.from({ length: 5 }, () => testDb.pool.query("SELECT pg_sleep(2)"));
+    await sleep(100);
+    const writer = new Client({ connectionString: testDb.databaseUrl });
+    await writer.connect();
+    await writer.query("UPDATE ticket_types SET reserved = reserved + 1 WHERE id = $1", [mineToo.vip.id]);
+    await writer.end();
+
+    await stream.waitFor(quotaFor(mineToo.id), 1500);
+    await Promise.all(busy);
     await stream.close();
   });
 
@@ -166,7 +185,7 @@ describe("LISTEN connection", () => {
     await before.waitFor((m) => m.retry === 3000);
 
     await testDb.db.execute(sql`
-      SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query ILIKE 'LISTEN%' AND pid <> pg_backend_pid()
+      SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = ${LISTENER_APPLICATION_NAME}
     `);
     await before.waitForEnd();
 
