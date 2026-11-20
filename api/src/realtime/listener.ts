@@ -35,6 +35,8 @@ export function listenForQuotaChanges({ connectionString, onNotify, onStatus, re
       application_name: LISTENER_APPLICATION_NAME,
       keepAlive: true,
       connectionTimeoutMillis: 5000,
+      // Queries on this client run one at a time; a stuck counter read would hold back every push.
+      statement_timeout: 5000,
     });
     next.on("notification", (msg) => {
       if (msg.channel === QUOTA_CHANNEL && msg.payload) onNotify(msg.payload);

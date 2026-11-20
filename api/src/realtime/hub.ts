@@ -38,13 +38,12 @@ export function createRealtimeHub({
   }
 
   async function flush(eventId: string) {
-    const owners = watchers.get(eventId);
-    const client = listener?.client;
-    if (!client || (publicClients.size === 0 && !owners?.size)) return;
+    const connection = listener?.client;
+    if (!connection || (publicClients.size === 0 && !watchers.get(eventId)?.size)) return;
 
     let types: CounterRow[];
     try {
-      types = await readCounters(client, eventId);
+      types = await readCounters(connection, eventId);
     } catch (err) {
       console.error("Realtime: reading counters failed", err);
       return;
@@ -54,6 +53,8 @@ export function createRealtimeHub({
     const publicMessage = { eventId, ticketTypes: types.map((t) => ({ id: t.id, remaining: remaining(t) })) };
     for (const client of publicClients) client.send("quota", publicMessage);
 
+    // Looked up after the read: the set may have been replaced while it ran.
+    const owners = watchers.get(eventId);
     if (owners?.size) {
       const organizerMessage = { eventId, ticketTypes: types.map((t) => ({ ...t, remaining: remaining(t) })) };
       for (const client of owners) {
