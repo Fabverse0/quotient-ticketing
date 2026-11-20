@@ -6,6 +6,7 @@ import { checkInvariants, getMyEvent, recentOrders, type InvariantReport, type O
 import { Button } from "../components/Button";
 import { DottedList } from "../components/DottedList";
 import { LiveNumber } from "../components/LiveNumber";
+import { LiveStatus } from "../components/LiveStatus";
 import { OrderStatus } from "../components/OrderStatus";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Reveal } from "../components/Reveal";
@@ -13,7 +14,7 @@ import { SeatMap } from "../components/SeatMap";
 import { POLL_MS } from "../hooks/useLiveStream";
 import { useOrganizerStream } from "../hooks/useOrganizerStream";
 import { useShake } from "../hooks/useShake";
-import { formatDateTime, formatRupiah, kindLabel } from "../lib/format";
+import { formatCount, formatDateTime, formatRupiah, kindLabel } from "../lib/format";
 import { serverNow } from "../lib/serverClock";
 
 export function DashboardPage() {
@@ -44,24 +45,40 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
     refetchInterval: polling ? POLL_MS : false,
   });
   const type = event.ticketTypes[index] ?? event.ticketTypes[0]!;
+  const capacity = event.ticketTypes.reduce((sum, t) => sum + t.quota, 0);
 
   return (
     <section className="py-12">
       <Link to="/organizer" className="inline-flex min-h-(--size-button) items-center text-small text-quiet">
         <span className="link-underline">Semua event</span>
       </Link>
-      <p className="mt-6 text-label uppercase tracking-label text-quiet">Dashboard organizer</p>
-      <h1 className="mt-2 font-display text-title text-ink">{event.title}</h1>
-      <p className="mt-1 text-small text-quiet">
-        {formatDateTime(event.startsAt)} · {event.venue} ·{" "}
-        {stoppedBy
-          ? "pembaruan langsung berhenti"
-          : polling
-            ? "sambungan langsung terputus, diperbarui tiap 10 detik"
-            : "diperbarui langsung"}
-      </p>
+      <header className="mt-4 rounded-ui border border-ink p-1">
+        <div className="flex flex-col gap-8 rounded-cover border border-ink px-6 py-8 sm:px-10 sm:py-10">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <p className="text-label uppercase tracking-label text-quiet">
+              Dashboard organizer · No. {event.id.slice(0, 6).toUpperCase()}
+            </p>
+            <LiveStatus polling={polling} stopped={Boolean(stoppedBy)} />
+          </div>
+          <h1 className="font-display text-title uppercase tracking-band text-balance break-words text-ink sm:text-band">
+            {event.title}
+          </h1>
+          <dl className="grid gap-4 sm:grid-cols-3 sm:gap-8">
+            {[
+              { label: "Waktu", value: formatDateTime(event.startsAt) },
+              { label: "Tempat", value: event.venue },
+              { label: "Kapasitas", value: `${formatCount(capacity)} kursi · ${event.ticketTypes.map((t) => `${kindLabel(t.kind)} ${formatCount(t.quota)}`).join(" · ")}` },
+            ].map((item) => (
+              <div key={item.label} className="border-t border-mist pt-3">
+                <dt className="text-label uppercase tracking-label text-quiet">{item.label}</dt>
+                <dd className="mt-1 text-body text-ink">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </header>
       {stoppedBy && (
-        <p role="alert" className="mt-2 text-small text-oxblood">
+        <p role="alert" className="mt-3 text-small text-oxblood">
           Angka di halaman ini tidak diperbarui lagi. {messageFor(stoppedBy)}
         </p>
       )}

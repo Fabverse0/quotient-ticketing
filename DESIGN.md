@@ -114,7 +114,7 @@ Satu kartu per kursi, berbingkai ganda dengan bayangan hangat: segel LUNAS di po
 Daftar baris dengan garis tipis, bukan kartu. Nama event, jumlah tiket, label status berwarna, dan waktu.
 
 ### Dashboard organizer
-- Label "Dashboard organizer", nama event Marcellus, indikator sage "Diperbarui langsung".
+- Judul dalam bingkai garis ganda: label kecil "Dashboard organizer · No. FA4628" (enam karakter pertama ID event), status di kanan atas, nama event Marcellus kapital berspasi lebar (sama dengan pita detail event), lalu tiga kolom bergaris tipis: Waktu, Tempat, dan Kapasitas (total kursi dan per tipe). Status memakai satu titik yang menandai keadaan nyata: sage "Diperbarui langsung", oker saat polling 10 detik, oxblood saat pembaruan berhenti. Titik tidak berdenyut dan tidak bercahaya.
 - Tab tipe tiket dengan garis bawah tipis.
 - Panel wall berisi empat angka Marcellus besar (kuota, terjual, ditahan, sisa) dan peta kursi besar dengan keterangan.
 - Panel pemeriksaan invariant bergaris titik, misalnya `reserved = pesanan menunggu .... 7 = 7`. Hasil sage "Semua cocok" atau oxblood dengan garis panel oxblood kalau ada pelanggaran. Tombol "Jalankan pemeriksaan".
