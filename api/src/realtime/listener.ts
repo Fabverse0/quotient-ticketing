@@ -1,6 +1,8 @@
 import { Client } from "pg";
 
 export const QUOTA_CHANNEL = "quota_changed";
+// Names the connection in pg_stat_activity.
+export const LISTENER_APPLICATION_NAME = "quotient-realtime";
 
 const MAX_RETRY_MS = 10_000;
 
@@ -13,6 +15,8 @@ interface ListenerOptions {
 
 // A dedicated client outside the pool: a pooled connection would be handed to
 // queries and its LISTEN would end up on whichever request borrows it next.
+// The hub also reads counters on it, so a push never queues behind a pool full
+// of order requests (a 200-order burst would otherwise hold it back to the end).
 export function listenForQuotaChanges({ connectionString, onNotify, onStatus, retryMs }: ListenerOptions) {
   let client: Client | undefined;
   let stopped = false;
@@ -26,7 +30,12 @@ export function listenForQuotaChanges({ connectionString, onNotify, onStatus, re
   };
 
   async function connect() {
-    const next = new Client({ connectionString, keepAlive: true, connectionTimeoutMillis: 5000 });
+    const next = new Client({
+      connectionString,
+      application_name: LISTENER_APPLICATION_NAME,
+      keepAlive: true,
+      connectionTimeoutMillis: 5000,
+    });
     next.on("notification", (msg) => {
       if (msg.channel === QUOTA_CHANNEL && msg.payload) onNotify(msg.payload);
     });
@@ -57,6 +66,10 @@ export function listenForQuotaChanges({ connectionString, onNotify, onStatus, re
   }
 
   return {
+    // Undefined while disconnected; open streams are closed then anyway.
+    get client() {
+      return client;
+    },
     // Settles after the first attempt, whether it connected or scheduled a retry.
     ready: connect(),
     async stop() {

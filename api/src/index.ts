@@ -14,7 +14,7 @@ if (config.organizer) {
   console.log(`Organizer account ${config.organizer.email}: ${result}`);
 }
 
-const realtime = createRealtimeHub({ db, connectionString: config.databaseUrl });
+const realtime = createRealtimeHub({ connectionString: config.databaseUrl });
 await realtime.start();
 
 const app = createApp({

@@ -1,8 +1,7 @@
 import { remaining } from "../modules/events/views.js";
-import type { Database } from "../shared/db/client.js";
 import { AppError } from "../shared/errors.js";
 import { listenForQuotaChanges } from "./listener.js";
-import { readCounters } from "./queries.js";
+import { readCounters, type CounterRow } from "./queries.js";
 
 export interface StreamClient {
   send(event: string, data: unknown): void;
@@ -11,7 +10,6 @@ export interface StreamClient {
 }
 
 interface HubOptions {
-  db: Database;
   connectionString: string;
   coalesceMs?: number;
   heartbeatMs?: number;
@@ -19,7 +17,6 @@ interface HubOptions {
 }
 
 export function createRealtimeHub({
-  db,
   connectionString,
   coalesceMs = 400,
   heartbeatMs = 15_000,
@@ -42,11 +39,12 @@ export function createRealtimeHub({
 
   async function flush(eventId: string) {
     const owners = watchers.get(eventId);
-    if (publicClients.size === 0 && !owners?.size) return;
+    const client = listener?.client;
+    if (!client || (publicClients.size === 0 && !owners?.size)) return;
 
-    let types: Awaited<ReturnType<typeof readCounters>>;
+    let types: CounterRow[];
     try {
-      types = await readCounters(db, eventId);
+      types = await readCounters(client, eventId);
     } catch (err) {
       console.error("Realtime: reading counters failed", err);
       return;
