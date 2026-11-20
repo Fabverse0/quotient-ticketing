@@ -177,6 +177,7 @@ Frontend (web/):
 - Token JWT di memori dan `localStorage` (`quotient.token`), dicatat di DECISIONS.md sebagai risiko XSS. Peran diambil dari `GET /auth/me`, bukan dari decode token di browser. Respons 401 untuk token tersimpan (selain `INVALID_CREDENTIALS`) mengakhiri sesi.
 - Kode error API dipetakan ke kalimat DESIGN.md di `web/src/api/errors.ts`. `VALIDATION_ERROR` dipecah per kolom dari pesan `field: pesan; field: pesan`.
 - Routing per peran: belum masuk ke `/masuk`, buyer ke `/` (daftar event dari `GET /events`), organizer ke `/organizer`, peran yang salah ke halaman awal perannya. Navigasi hanya menautkan halaman yang sudah ada.
+- Logo: simbol cincin berbagi empat (ekor umber) dan tulisan QUOTIENT yang sudah menjadi path, di `components/Logo.tsx` (`logoShapes.ts` dibuat dari `docs/logo/final/`). Favicon dan ikon ada di `web/public/`; di bawah 48px pakai versi kecil. Ornamen tiket (`TicketOrnament`) hanya untuk state kosong lewat `PageMessage ornament`. Aturan pakai dan lisensi font Marcellus (OFL) di `docs/logo/README.md`.
 - Semua link, tab, dan tombol punya target sentuh minimal 44px; garis bawah tautan ada di `span` label, bukan di kotak yang lebih tinggi.
 - Compose: service `web` di port host 8080 (`WEB_PORT`), start setelah `api` sehat. Healthcheck memakai `127.0.0.1`, karena `localhost` di container di-resolve ke IPv6 sementara nginx hanya mendengarkan IPv4. `tools/demo.mjs` hanya menyalakan `api` supaya tidak mengambil port 8080 dari stack dev.
 - Screenshot dan snapshot Playwright MCP tersimpan di `.playwright-mcp/` (di-gitignore).
