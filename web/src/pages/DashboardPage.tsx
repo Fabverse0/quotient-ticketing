@@ -10,16 +10,15 @@ import { OrderStatus } from "../components/OrderStatus";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Reveal } from "../components/Reveal";
 import { SeatMap } from "../components/SeatMap";
+import { POLL_MS } from "../hooks/useLiveStream";
+import { useOrganizerStream } from "../hooks/useOrganizerStream";
 import { useShake } from "../hooks/useShake";
 import { formatDateTime, formatRupiah, kindLabel } from "../lib/format";
 import { serverNow } from "../lib/serverClock";
 
-// Plain polling for now; the realtime module replaces it with a live stream.
-const REFRESH_MS = 10_000;
-
 export function DashboardPage() {
   const { id = "" } = useParams();
-  const event = useQuery({ queryKey: ["organizer-event", id], queryFn: () => getMyEvent(id), refetchInterval: REFRESH_MS });
+  const event = useQuery({ queryKey: ["organizer-event", id], queryFn: () => getMyEvent(id) });
 
   if (event.isPending) return <PageLoading />;
   if (event.isError) {
@@ -37,6 +36,13 @@ export function DashboardPage() {
 
 function Dashboard({ event }: { event: OrganizerEvent }) {
   const [index, setIndex] = useState(0);
+  const polling = useOrganizerStream(event.id);
+  // A second observer of the page's query, so it polls only while the stream is down.
+  useQuery({
+    queryKey: ["organizer-event", event.id],
+    queryFn: () => getMyEvent(event.id),
+    refetchInterval: polling ? POLL_MS : false,
+  });
   const type = event.ticketTypes[index] ?? event.ticketTypes[0]!;
 
   return (
@@ -47,7 +53,8 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
       <p className="mt-6 text-label uppercase tracking-label text-quiet">Dashboard organizer</p>
       <h1 className="mt-2 font-display text-title text-ink">{event.title}</h1>
       <p className="mt-1 text-small text-quiet">
-        {formatDateTime(event.startsAt)} · {event.venue} · diperbarui tiap 10 detik
+        {formatDateTime(event.startsAt)} · {event.venue} ·{" "}
+        {polling ? "sambungan langsung terputus, diperbarui tiap 10 detik" : "diperbarui langsung"}
       </p>
 
       <div
@@ -98,7 +105,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
             <InvariantPanel eventId={event.id} />
           </Reveal>
           <Reveal index={1}>
-            <OrdersPanel eventId={event.id} />
+            <OrdersPanel eventId={event.id} polling={polling} />
           </Reveal>
         </div>
       </div>
@@ -177,8 +184,12 @@ function InvariantPanel({ eventId }: { eventId: string }) {
   );
 }
 
-function OrdersPanel({ eventId }: { eventId: string }) {
-  const orders = useQuery({ queryKey: ["organizer-orders", eventId], queryFn: () => recentOrders(eventId), refetchInterval: REFRESH_MS });
+function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }) {
+  const orders = useQuery({
+    queryKey: ["organizer-orders", eventId],
+    queryFn: () => recentOrders(eventId),
+    refetchInterval: polling ? POLL_MS : false,
+  });
 
   return (
     <section aria-labelledby="orders-title" className="flex flex-col gap-4 rounded-ui bg-wall p-6">

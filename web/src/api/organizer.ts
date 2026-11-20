@@ -63,4 +63,6 @@ export const listMyEvents = () => api<OrganizerEvent[]>("/organizer/events");
 export const getMyEvent = (id: string) => api<OrganizerEvent>(`/organizer/events/${id}`);
 export const recentOrders = (id: string) => api<RecentOrder[]>(`/organizer/events/${id}/orders?limit=20`);
 export const createEvent = (body: NewEvent) => api<OrganizerEvent>("/events", { method: "POST", body });
+export const streamTicket = (id: string) =>
+  api<{ ticket: string }>(`/organizer/events/${id}/stream-ticket`, { method: "POST" });
 export const checkInvariants = (eventId: string) => api<InvariantReport>(`/admin/invariants?eventId=${eventId}`);
