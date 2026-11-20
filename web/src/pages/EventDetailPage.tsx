@@ -7,12 +7,15 @@ import { placeOrder } from "../api/orders";
 import { useSession } from "../auth/session";
 import { Button } from "../components/Button";
 import { DoseSelector } from "../components/DoseSelector";
+import { LiveNumber } from "../components/LiveNumber";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Reveal } from "../components/Reveal";
 import { SeatMap } from "../components/SeatMap";
+import { useHasPassed } from "../hooks/useHasPassed";
+import { POLL_MS } from "../hooks/useLiveStream";
+import { usePublicQuota } from "../hooks/usePublicQuota";
 import { useShake } from "../hooks/useShake";
 import { formatCount, formatDateTime, formatRupiah, kindLabel } from "../lib/format";
-import { serverNow } from "../lib/serverClock";
 
 const MAX_PER_ORDER = 4;
 
@@ -23,7 +26,8 @@ const isLostAnswer = (error: unknown) =>
 
 export function EventDetailPage() {
   const { id = "" } = useParams();
-  const event = useQuery({ queryKey: ["event", id], queryFn: () => getEvent(id) });
+  const polling = usePublicQuota();
+  const event = useQuery({ queryKey: ["event", id], queryFn: () => getEvent(id), refetchInterval: polling ? POLL_MS : false });
 
   if (event.isPending) return <PageLoading />;
   if (event.isError) {
@@ -59,7 +63,9 @@ function EventDetail({ event }: { event: PublicEvent }) {
                 <h2 id="seats-title" className="text-label uppercase tracking-label text-quiet">
                   Sisa kursi {kindLabel(type.kind)}
                 </h2>
-                <p className="font-display text-figure leading-none text-ink">{formatCount(type.remaining)}</p>
+                <p className="font-display text-figure leading-none text-ink">
+                  <LiveNumber value={type.remaining} />
+                </p>
                 <p className="text-caption text-quiet">dari {formatCount(type.quota)} kursi</p>
               </div>
             </div>
@@ -98,7 +104,7 @@ function OrderPanel({
 
   const maxDose = Math.min(MAX_PER_ORDER, type.remaining);
   const dose = Math.min(quantity, Math.max(1, maxDose));
-  const started = new Date(event.startsAt).getTime() <= serverNow();
+  const started = useHasPassed(event.startsAt);
 
   const order = useMutation({
     mutationFn: () => {
