@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { sweepExpiredOrders } from "../src/jobs/sweeper.js";
+import { listPaidSales } from "../src/modules/events/queries.js";
 import { buyerToken, call, organizerToken, testAuthSettings } from "./helpers/auth.js";
 import { createTestEvent, type TestEvent } from "./helpers/events.js";
 import { createFakeClock } from "./helpers/fake-clock.js";
@@ -85,6 +86,12 @@ describe("GET /organizer/events/:id/analytics", () => {
       { at: firstPaymentAt.toISOString(), kind: "REGULAR", quantity: 2 },
       { at: new Date(firstPaymentAt.getTime() + MINUTE_MS).toISOString(), kind: "VIP", quantity: 1 },
     ]);
+  });
+
+  it("keeps the newest sales when there are more than the limit, still oldest first", async () => {
+    const sales = await listPaidSales(testDb.db, event.id, 1);
+
+    expect(sales).toEqual([{ at: new Date(firstPaymentAt.getTime() + MINUTE_MS).toISOString(), kind: "VIP", quantity: 1 }]);
   });
 
   it("returns empty lists for an event with no orders", async () => {

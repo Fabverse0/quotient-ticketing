@@ -13,7 +13,7 @@ import {
 import type { CreateEventInput } from "./schemas.js";
 import { toOrganizerEvent, toPublicEvent } from "./views.js";
 
-// A chart needs a shape, not every order; past this many paid orders the oldest are kept.
+// A chart needs a shape, not every order; past this many paid orders the newest are kept.
 const SALES_LIMIT = 2000;
 
 export function createEventsService({ db }: { db: Database }) {
