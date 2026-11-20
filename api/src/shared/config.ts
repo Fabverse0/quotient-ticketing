@@ -9,6 +9,9 @@ export const DEFAULT_DB_TIMEOUT_MS = 5000;
 
 const DURATION_UNITS = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
+// Defaults from docker-compose.yml and .env.example, public in the repo.
+const PLACEHOLDER_SECRET_PREFIXES = ["dev-only-", "ganti-dengan-"];
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -33,6 +36,14 @@ const envSchema = z
   .refine((env) => Boolean(env.ORGANIZER_EMAIL) === Boolean(env.ORGANIZER_PASSWORD), {
     message: "ORGANIZER_EMAIL and ORGANIZER_PASSWORD must be set together",
     path: ["ORGANIZER_PASSWORD"],
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== "production") return;
+    for (const name of ["JWT_SECRET", "PAYMENT_WEBHOOK_SECRET"] as const) {
+      if (PLACEHOLDER_SECRET_PREFIXES.some((prefix) => env[name].startsWith(prefix))) {
+        ctx.addIssue({ code: "custom", path: [name], message: "is a placeholder from the example config, set a real secret" });
+      }
+    }
   });
 
 export interface Config {

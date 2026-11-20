@@ -67,6 +67,34 @@ describe("loadConfig", () => {
     expect(loadConfig({ ...validEnv, NODE_ENV: nodeEnv }).simulatedPaymentEnabled).toBe(enabled);
   });
 
+  describe("placeholder secrets from docker-compose.yml and .env.example", () => {
+    const placeholders = {
+      JWT_SECRET: ["dev-only-secret-change-before-any-real-use", "ganti-dengan-string-acak-minimal-32-karakter"],
+      PAYMENT_WEBHOOK_SECRET: ["dev-only-webhook-secret-change-before-real-use", "ganti-dengan-secret-webhook-minimal-32-karakter"],
+    };
+
+    it.each(Object.entries(placeholders).flatMap(([name, values]) => values.map((value) => [name, value])))(
+      "rejects %s=%s when NODE_ENV is production",
+      (name, value) => {
+        expect(() => loadConfig({ ...validEnv, NODE_ENV: "production", [name]: value })).toThrow(new RegExp(name));
+      },
+    );
+
+    it.each(["development", "test"])("accepts them when NODE_ENV is %s", (nodeEnv) => {
+      const env = {
+        ...validEnv,
+        NODE_ENV: nodeEnv,
+        JWT_SECRET: placeholders.JWT_SECRET[0]!,
+        PAYMENT_WEBHOOK_SECRET: placeholders.PAYMENT_WEBHOOK_SECRET[0]!,
+      };
+      expect(loadConfig(env).jwtSecret).toBe(placeholders.JWT_SECRET[0]);
+    });
+
+    it("accepts real secrets in production", () => {
+      expect(loadConfig({ ...validEnv, NODE_ENV: "production" }).simulatedPaymentEnabled).toBe(false);
+    });
+  });
+
   it("rejects an unknown NODE_ENV", () => {
     expect(() => loadConfig({ ...validEnv, NODE_ENV: "staging" })).toThrow(/NODE_ENV/);
   });
