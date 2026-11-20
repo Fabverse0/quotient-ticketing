@@ -53,7 +53,7 @@ Setelah lock didapat, baru jumlah tiket aktif dihitung. Lock lepas otomatis saat
 
 **Detail yang menentukan: level isolasi harus READ COMMITTED.** Di level ini setiap statement mengambil snapshot baru, sehingga hitungan yang dijalankan setelah lock pasti melihat pesanan yang baru di-commit pemegang lock sebelumnya. Di REPEATABLE READ snapshot sudah diambil sebelum lock, dan batas 4 tiket tetap jebol walaupun lock-nya ada.
 
-**Urutan lock** di seluruh sistem selalu sama: lock idempotency, lalu lock pembeli dan event, lalu baris `orders`, baru baris `ticket_types`. Urutan yang konsisten mencegah deadlock.
+**Urutan lock** di seluruh sistem selalu sama: lock idempotency, lalu lock pembeli dan event, lalu baris `orders`, baru baris `ticket_types`. Urutan yang konsisten mencegah deadlock. Satu pengecualian yang aman: saat membuat pesanan, `ticket_types` disentuh sebelum baris `orders` di-insert. Baris order itu baru dan tidak bisa diperebutkan transaksi lain, jadi tidak ada lingkaran tunggu.
 
 **Bukti.** Saat lock saya matikan sementara, 6 dari 10 request paralel lolos dan satu pembeli memegang 12 tiket. Dengan lock, tepat 2 yang lolos.
 
@@ -111,6 +111,8 @@ Perpindahan kuota per transisi:
 | Pesan (PENDING) | +q | |
 | PENDING ke PAID | -q | +q |
 | PENDING ke CANCELLED / EXPIRED | -q | |
+| PENDING lewat `expires_at` ke REFUND_REQUIRED (webhook terlambat) | -q | |
+| EXPIRED / CANCELLED ke REFUND_REQUIRED | | |
 
 **Tiket tidak terbit dua kali.** Dua lapis: status guard di atas, dan `UNIQUE (order_id, seq)` di tabel tiket. Kode tiket diambil dari `crypto.randomBytes` (96 bit), jadi tidak berurutan dan tidak bisa ditebak.
 
@@ -185,6 +187,8 @@ Pengecekan ini dilakukan paling awal, dengan advisory lock untuk key tersebut, s
 
 **Konteks.** Pembeli melihat sisa kursi dan organizer melihat counter bergerak selagi pesanan masuk. Datanya satu arah (server ke browser), jadi saya memilih SSE: lebih sederhana dari WebSocket. Untuk lebih dari satu instance API, perubahan kuota disebarkan lewat `LISTEN/NOTIFY` PostgreSQL. `pg_notify` dipanggil di dalam transaksi dan baru terkirim setelah commit, jadi rollback tidak pernah memicu notifikasi. Ini juga alasan tidak perlu Redis pub/sub.
 
+**Yang sudah dan belum dibuktikan.** Desainnya siap untuk lebih dari satu instance: kuota dijaga di database, bukan di memori aplikasi, dan setiap instance mendengarkan `quota_changed` sendiri. Tapi ini belum diuji dengan dua replika. Compose hanya menjalankan satu API, dan tidak ada test dengan dua hub. Semua test dan pengukuran realtime di dokumen ini berasal dari satu instance.
+
 Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan frontend tetap harus menangani "tiket baru saja habis".
 
 ### 9a. Autentikasi SSE organizer: tiket stream berumur pendek
@@ -229,7 +233,7 @@ Angka di layar hanya informasi. Keputusan akhir tetap di transaksi database, dan
 
 **Klien yang terlalu lambat.** Server tidak menunggu klien yang berhenti membaca. Setiap stream menghitung byte yang sudah ditulis tapi belum diambil. Kalau jumlahnya melewati 64 KB (sekitar 400 pesan kuota), socket-nya diputus dan klien dilepas dari hub. Browser yang masih hidup akan menyambung ulang dan memuat ulang datanya. Hitungan ini bisa dipercaya karena node-server berhenti membaca body selama socket penuh. Menutup stream saja tidak cukup, karena server masih menunggu socket kosong lagi, jadi socket-nya harus dihancurkan. Diuji dengan socket mentah yang tidak pernah membaca: tanpa `socket.destroy()` koneksi tetap dipegang server, dengan `socket.destroy()` koneksi dilepas. Batas itu baru mulai terhitung setelah buffer socket di OS dan Node penuh, jadi klien yang macet sempat menerima lebih dari 64 KB sebelum diputus.
 
-**Trade-off.** Setiap instance membaca counter sendiri, jadi dengan dua replika satu perubahan berarti dua bacaan. Kalau bacaan counter gagal, kiriman untuk jendela itu hilang sampai perubahan berikutnya.
+**Trade-off.** Setiap instance membaca counter sendiri, jadi dengan dua instance satu perubahan berarti dua bacaan (penalaran dari desain, belum diukur). Kalau bacaan counter gagal, kiriman untuk jendela itu hilang sampai perubahan berikutnya.
 
 ---
 
@@ -266,7 +270,7 @@ Query inti kuota tetap ditulis sebagai raw SQL, supaya ORM tidak menyembunyikan 
 
 **Pilihan.** Nginx dipakai di container web: menyajikan hasil build frontend dan meneruskan `/api` ke API, supaya browser hanya berbicara dengan satu origin dan API tidak perlu CORS. Saat development, Vite melakukan hal yang sama lewat proxy-nya. Route SSE memakai `proxy_buffering off` supaya setiap pesan langsung diteruskan, dan `proxy_read_timeout 1h` supaya stream yang diam di antara heartbeat tidak diputus.
 
-Load balancing dan rate limit per IP belum dipakai. Nginx hanya layak kalau ada frontend dan dua replika API: satu origin (tanpa CORS), load balancing, dan rate limit per IP. Biayanya satu komponen lagi dan konfigurasi khusus untuk SSE. Bukti bahwa kuota dijaga di database, bukan di memori aplikasi, sebenarnya datang dari dua replika, bukan dari Nginx.
+Load balancing dan rate limit per IP belum dipakai. Nginx di sini baru memberi satu origin (tanpa CORS) dan konfigurasi khusus untuk SSE. Load balancing ke beberapa replika API dan rate limit per IP adalah alasan lain memakainya, tapi belum dikerjakan: compose hanya menjalankan satu API. Kuota dijaga di database, bukan di memori aplikasi, jadi desainnya tidak berubah kalau replika ditambah. Tetapi itu belum dibuktikan dengan dua replika.
 
 Catatan kalau dua replika dipakai: saat ini setiap instance menjalankan migrasi saat start. Migrasi perlu dipindah ke satu service yang berjalan sekali.
 
@@ -279,6 +283,8 @@ Catatan kalau dua replika dipakai: saat ini setiap instance menjalankan migrasi 
 **Modul per domain** (auth, events, orders, payments, tickets), dan di dalam tiap modul ada lapisan handler, service, queries, dan views. Batas transaksi selalu ada di service. Query menerima `Executor` (database atau transaksi), jadi bisa disusun di dalam satu `db.transaction`.
 
 **Alur kerja.** Satu branch per modul, atomic commit dengan Conventional Commits, PR di-merge dengan rebase merge supaya riwayat per commit tetap terlihat di `main`. CI menjalankan test di setiap push dan PR, lalu membangun image dan mendorongnya ke GHCR dengan tag commit SHA di setiap push ke `main`.
+
+**Image di GHCR hanya untuk API.** CI mendorong image API dengan tag commit (`sha-<short>`) di setiap push ke `main`. `docker-compose.yml` tidak menarik image itu, melainkan membangun `api` dan `web` dari source. Alasannya: penguji yang meng-clone repo cukup menjalankan `docker compose up` tanpa akses registry dan tanpa tahu tag mana yang dipakai, dan yang dijalankan selalu sama dengan source yang sedang dilihat. Image web tidak didorong karena belum ada target deploy yang membutuhkannya (deploy online opsional dan dikerjakan paling akhir). Kalau deploy ditambahkan, compose untuk deploy perlu menunjuk ke image dari GHCR dan image web ikut didorong.
 
 ---
 
@@ -359,4 +365,6 @@ Atomic tepat 100 terjual di keempat run, tanpa error selain 409. Naive meloloska
 - Token JWT tetap berlaku sampai kedaluwarsa walaupun akunnya dihapus.
 - `GET /events` dan riwayat pesanan belum memakai paginasi.
 - Kalau Postgres memutus koneksi pool yang sedang dipakai (transaksi diam lebih dari 10 detik, restart, atau jaringan putus), request yang memakai koneksi itu gagal dengan 500 dan tidak diulang otomatis. Transaksinya batal utuh, jadi kuota tidak berubah setengah jalan. Sebelumnya kejadian ini mematikan seluruh proses API, karena `pg-pool` melepas listener error saat koneksi dipinjam. Ini sempat terjadi di stack dev saat Docker kelebihan beban. Sekarang setiap koneksi pool punya listener sendiri, dan ada test yang memutus koneksi di tengah transaksi lalu memastikan proses tetap hidup dan pool tetap melayani.
+- `/auth/login` dan `/auth/register` belum dibatasi lajunya (rate limit), jadi percobaan password bisa diulang tanpa batas dari satu alamat. Nginx bisa memasangnya kalau diperlukan.
+- Pesanan berstatus `REFUND_REQUIRED` belum punya alur penyelesaian. Statusnya hanya menandai bahwa dana harus dikembalikan; tidak ada endpoint atau halaman yang memprosesnya, dan pengembalian dana sungguhan di luar ruang lingkup.
 - Token JWT di frontend disimpan di `localStorage` supaya sesi bertahan setelah reload. Skrip apa pun yang berjalan di halaman (misalnya lewat celah XSS) bisa membacanya.
