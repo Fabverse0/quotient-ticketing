@@ -1,6 +1,8 @@
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
+import { OrganizerShell } from "./components/OrganizerShell";
 import { RequireRole } from "./components/RequireRole";
+import { AnalyticsRedirect } from "./pages/AnalyticsRedirect";
 import { AuthPage } from "./pages/AuthPage";
 import { CreateEventPage } from "./pages/CreateEventPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -43,33 +45,25 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
-      {
-        path: "/organizer",
-        element: (
-          <RequireRole role="organizer">
-            <OrganizerEventsPage />
-          </RequireRole>
-        ),
-      },
-      {
-        path: "/organizer/event/baru",
-        element: (
-          <RequireRole role="organizer">
-            <CreateEventPage />
-          </RequireRole>
-        ),
-      },
-      {
-        path: "/organizer/event/:id",
-        element: (
-          <RequireRole role="organizer">
-            <DashboardPage />
-          </RequireRole>
-        ),
-      },
       { path: "/masuk", element: <AuthPage mode="login" /> },
       { path: "/daftar", element: <AuthPage mode="register" /> },
       { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+  {
+    path: "/organizer",
+    element: (
+      <RequireRole role="organizer">
+        <OrganizerShell />
+      </RequireRole>
+    ),
+    children: [
+      // Until the overview exists, the first page of the area is the event list.
+      { index: true, element: <Navigate to="/organizer/event" replace /> },
+      { path: "analitik", element: <AnalyticsRedirect /> },
+      { path: "event", element: <OrganizerEventsPage /> },
+      { path: "event/baru", element: <CreateEventPage /> },
+      { path: "event/:id", element: <DashboardPage /> },
     ],
   },
 ]);

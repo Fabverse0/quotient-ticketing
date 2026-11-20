@@ -47,7 +47,7 @@ function Dashboard({ event }: { event: OrganizerEvent }) {
 
   return (
     <section className="py-12">
-      <Link to="/organizer" className="inline-flex min-h-(--size-button) items-center text-small text-quiet">
+      <Link to="/organizer/event" className="inline-flex min-h-(--size-button) items-center text-small text-quiet">
         <span className="link-underline">Semua event</span>
       </Link>
       <header className="mt-4 rounded-ui border border-ink p-1">
