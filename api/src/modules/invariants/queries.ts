@@ -15,7 +15,7 @@ export type TicketTypeTally = {
 };
 
 // Counters next to what the orders and tickets tables say they should be.
-export async function tallyTicketTypes(tx: Executor): Promise<TicketTypeTally[]> {
+export async function tallyTicketTypes(tx: Executor, eventId?: string): Promise<TicketTypeTally[]> {
   const { rows } = await tx.execute<TicketTypeTally>(sql`
     SELECT
       tt.event_id AS "eventId",
@@ -40,6 +40,7 @@ export async function tallyTicketTypes(tx: Executor): Promise<TicketTypeTally[]>
       FROM tickets t JOIN orders o ON o.id = t.order_id
       GROUP BY o.ticket_type_id
     ) t ON t.ticket_type_id = tt.id
+    ${eventId ? sql`WHERE tt.event_id = ${eventId}` : sql``}
     ORDER BY tt.event_id, tt.kind
   `);
   return rows;
@@ -52,11 +53,11 @@ export interface BuyerTally {
 }
 
 // One statement: a CTE referenced more than once is materialized a single time.
-export async function tallyActiveTicketsPerBuyer(tx: Executor, limit: number): Promise<BuyerTally> {
+export async function tallyActiveTicketsPerBuyer(tx: Executor, limit: number, eventId?: string): Promise<BuyerTally> {
   const { rows } = await tx.execute<{ pairs: number; maxActiveQuantity: number; overLimit: BuyerTally["overLimit"] }>(sql`
     WITH active AS (
       SELECT buyer_id, event_id, SUM(quantity)::int AS quantity
-      FROM orders WHERE status IN ('PENDING', 'PAID')
+      FROM orders WHERE status IN ('PENDING', 'PAID') ${eventId ? sql`AND event_id = ${eventId}` : sql``}
       GROUP BY buyer_id, event_id
     )
     SELECT
@@ -71,4 +72,11 @@ export async function tallyActiveTicketsPerBuyer(tx: Executor, limit: number): P
       ) AS "overLimit"
   `);
   return rows[0]!;
+}
+
+export async function findEventOrganizer(tx: Executor, eventId: string): Promise<string | undefined> {
+  const { rows } = await tx.execute<{ organizerId: string }>(sql`
+    SELECT organizer_id AS "organizerId" FROM events WHERE id = ${eventId}
+  `);
+  return rows[0]?.organizerId;
 }
