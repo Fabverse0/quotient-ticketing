@@ -13,6 +13,8 @@ import { webhookRoutes } from "./modules/payments/handler.js";
 import { createPaymentsService } from "./modules/payments/service.js";
 import { ticketRoutes } from "./modules/tickets/handler.js";
 import { createTicketsService } from "./modules/tickets/service.js";
+import { realtimeRoutes } from "./realtime/handler.js";
+import type { RealtimeHub } from "./realtime/hub.js";
 import type { Clock } from "./shared/clock.js";
 import type { QuotaStrategyName } from "./shared/config.js";
 import type { Database } from "./shared/db/client.js";
@@ -29,6 +31,8 @@ export interface AppDeps {
   simulatedPaymentEnabled?: boolean;
   // Without a secret the webhook route is not registered at all.
   paymentWebhookSecret?: string;
+  // Without a hub the stream routes are not registered (tests that do not need them).
+  realtime?: RealtimeHub;
 }
 
 const HEALTH_DB_TIMEOUT_MS = 2000;
@@ -53,11 +57,16 @@ export function createApp({
   naiveRaceDelayMs = 0,
   simulatedPaymentEnabled = false,
   paymentWebhookSecret,
+  realtime,
 }: AppDeps) {
   const app = new Hono();
 
   app.route("/auth", authRoutes(createAuthService({ db, clock, settings: auth }), auth.secret));
   const eventsService = createEventsService({ db });
+  // Before the event routes, so /events/stream is not taken for /events/:id.
+  if (realtime) {
+    app.route("/", realtimeRoutes({ hub: realtime, events: eventsService, secret: auth.secret, clock }));
+  }
   app.route("/events", eventRoutes(eventsService, auth.secret));
   app.route("/organizer/events", organizerEventRoutes(eventsService, auth.secret));
   const ordersService = createOrdersService({ db, clock, strategy: createQuotaStrategy(quotaStrategy, naiveRaceDelayMs) });
