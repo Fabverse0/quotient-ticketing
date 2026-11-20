@@ -123,6 +123,7 @@ erDiagram
 | Buat pesanan (PENDING) | +quantity | |
 | PENDING ke PAID | -quantity | +quantity |
 | PENDING ke CANCELLED atau EXPIRED | -quantity | |
+| PENDING lewat `expires_at` (belum disapu) ke REFUND_REQUIRED, karena webhook terlambat | -quantity | |
 | EXPIRED atau CANCELLED ke REFUND_REQUIRED | | |
 
 Advisory lock batas 4 tiket tidak ada di skema:
