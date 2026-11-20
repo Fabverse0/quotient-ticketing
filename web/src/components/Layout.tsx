@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router";
 import { useSession } from "../auth/session";
+import { Logo } from "./Logo";
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
   `inline-flex min-h-(--size-button) items-center text-sm ${isActive ? "text-ink" : "text-quiet"}`;
@@ -10,14 +11,8 @@ export function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 sm:px-8">
-        <Link to="/" className="flex min-h-(--size-button) items-center gap-3 text-ink" aria-label="Quotient, ke halaman awal">
-          <span
-            aria-hidden="true"
-            className="flex size-9 items-center justify-center rounded-full border border-ink font-display text-lg"
-          >
-            Q
-          </span>
-          <span className="hidden font-display text-lg sm:inline">Quotient</span>
+        <Link to="/" className="flex min-h-(--size-button) items-center text-ink" aria-label="Quotient, ke halaman awal">
+          <Logo />
         </Link>
         <nav aria-label="Navigasi utama" className="flex items-center gap-4 sm:gap-5">
           {user?.role !== "organizer" && (

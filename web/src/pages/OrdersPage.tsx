@@ -33,7 +33,7 @@ export function OrdersPage() {
         </PageMessage>
       )}
       {orders.data?.length === 0 && (
-        <PageMessage>
+        <PageMessage ornament>
           Belum ada pesanan.{" "}
           <Link to="/" className="link-underline text-ink">
             Lihat event
