@@ -65,7 +65,7 @@ export function createRealtimeHub({
   }
 
   // Trailing window: the first change opens it, later ones ride along, and the
-  // counters are read once when it closes. 200 orders become a few pushes.
+  // counters are read once when it closes.
   function schedule(eventId: string) {
     if (pending.has(eventId)) return;
     pending.set(
