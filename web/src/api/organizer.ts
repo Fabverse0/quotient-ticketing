@@ -51,6 +51,23 @@ export interface InvariantReport {
   checks: InvariantCheck[];
 }
 
+export interface StatusTally {
+  status: OrderStatus;
+  orders: number;
+  quantity: number;
+}
+
+export interface Sale {
+  at: string;
+  kind: TicketKind;
+  quantity: number;
+}
+
+export interface EventAnalytics {
+  statuses: StatusTally[];
+  sales: Sale[];
+}
+
 export interface NewEvent {
   title: string;
   description: string;
@@ -61,6 +78,7 @@ export interface NewEvent {
 
 export const listMyEvents = () => api<OrganizerEvent[]>("/organizer/events");
 export const getMyEvent = (id: string) => api<OrganizerEvent>(`/organizer/events/${id}`);
+export const getAnalytics = (id: string) => api<EventAnalytics>(`/organizer/events/${id}/analytics`);
 export const recentOrders = (id: string) => api<RecentOrder[]>(`/organizer/events/${id}/orders?limit=20`);
 export const createEvent = (body: NewEvent) => api<OrganizerEvent>("/events", { method: "POST", body });
 export const streamTicket = (id: string) =>

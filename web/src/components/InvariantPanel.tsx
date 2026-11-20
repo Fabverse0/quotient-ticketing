@@ -97,7 +97,7 @@ export function InvariantPanel({ eventId }: { eventId: string }) {
       ref={ref}
       aria-labelledby="invariant-title"
       className={`rise flex flex-col gap-6 rounded-card bg-wall p-6 ${report && !report.ok ? "border border-oxblood" : ""}`}
-      style={stagger(4)}
+      style={stagger(6)}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">

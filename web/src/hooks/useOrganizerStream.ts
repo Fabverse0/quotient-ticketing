@@ -20,6 +20,7 @@ export function useOrganizerStream(eventId: string) {
     onOpen: () => {
       void queryClient.invalidateQueries({ queryKey: ["organizer-event", eventId] });
       void queryClient.invalidateQueries({ queryKey: ["organizer-orders", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["organizer-analytics", eventId] });
     },
     handlers: {
       quota: (data) => {
@@ -38,7 +39,10 @@ export function useOrganizerStream(eventId: string) {
             },
         );
       },
-      orders: () => void queryClient.invalidateQueries({ queryKey: ["organizer-orders", eventId] }),
+      orders: () => {
+        void queryClient.invalidateQueries({ queryKey: ["organizer-orders", eventId] });
+        void queryClient.invalidateQueries({ queryKey: ["organizer-analytics", eventId] });
+      },
     },
   });
 }

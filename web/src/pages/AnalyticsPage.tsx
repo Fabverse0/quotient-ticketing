@@ -3,7 +3,16 @@ import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, messageFor } from "../api/errors";
 import type { TicketKind } from "../api/events";
-import { getMyEvent, listMyEvents, recentOrders, type OrganizerEvent, type OrganizerTicketType } from "../api/organizer";
+import type { OrderStatus as Status } from "../api/orders";
+import {
+  getAnalytics,
+  getMyEvent,
+  listMyEvents,
+  recentOrders,
+  type EventAnalytics,
+  type OrganizerEvent,
+  type OrganizerTicketType,
+} from "../api/organizer";
 import { Bar } from "../components/Bar";
 import { CountUp } from "../components/CountUp";
 import { InvariantPanel } from "../components/InvariantPanel";
@@ -11,6 +20,7 @@ import { LiveStatus } from "../components/LiveStatus";
 import { OrderStatus } from "../components/OrderStatus";
 import { PageLoading, PageMessage } from "../components/PageState";
 import { Ring } from "../components/Ring";
+import { SalesChart } from "../components/SalesChart";
 import { SeatMap } from "../components/SeatMap";
 import { POLL_MS } from "../hooks/useLiveStream";
 import { useOrganizerStream } from "../hooks/useOrganizerStream";
@@ -78,6 +88,8 @@ function Analytics({ event }: { event: OrganizerEvent }) {
           <KindCard key={type.id} type={type} index={2 + i} />
         ))}
       </div>
+
+      <Trends eventId={event.id} polling={polling} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <InvariantPanel eventId={event.id} />
@@ -249,7 +261,7 @@ function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }
   });
 
   return (
-    <section aria-labelledby="orders-title" className={`${card} flex flex-col gap-4`} style={stagger(5)}>
+    <section aria-labelledby="orders-title" className={`${card} flex flex-col gap-4`} style={stagger(7)}>
       <h2 id="orders-title" className="text-lead font-bold text-ink">
         Pesanan terbaru
       </h2>
@@ -281,5 +293,75 @@ function OrdersPanel({ eventId, polling }: { eventId: string; polling: boolean }
         Semua event
       </Link>
     </section>
+  );
+}
+
+// What each order status is called and how its bar is coloured.
+const STATUS: Record<Status, { label: string; fill: string }> = {
+  PENDING: { label: "Menunggu bayar", fill: "bg-ochre" },
+  PAID: { label: "Lunas", fill: "bg-inkblue" },
+  CANCELLED: { label: "Dibatalkan", fill: "bg-slate" },
+  EXPIRED: { label: "Kedaluwarsa", fill: "bg-oxblood" },
+  REFUND_REQUIRED: { label: "Perlu refund", fill: "bg-ink" },
+};
+
+function Trends({ eventId, polling }: { eventId: string; polling: boolean }) {
+  const analytics = useQuery({
+    queryKey: ["organizer-analytics", eventId],
+    queryFn: () => getAnalytics(eventId),
+    refetchInterval: polling ? POLL_MS : false,
+  });
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <section aria-labelledby="sales-title" className={card} style={stagger(4)}>
+        <h2 id="sales-title" className="text-lead font-bold text-ink">
+          Tiket terjual dari waktu ke waktu
+        </h2>
+        <p className="mt-1 text-small text-quiet">Jumlah kumulatif tiap kali pesanan lunas, Reguler dan VIP.</p>
+        <div className="mt-5">
+          {analytics.isPending && <div role="status" aria-label="Memuat" className="h-56 animate-pulse rounded-chip bg-canvas" />}
+          {analytics.isError && <p className="text-small text-oxblood">{messageFor(analytics.error)}</p>}
+          {analytics.data && analytics.data.sales.length === 0 && (
+            <p className="text-small text-quiet">Belum ada pesanan lunas. Garis akan muncul di sini begitu ada tiket yang terbayar.</p>
+          )}
+          {analytics.data && analytics.data.sales.length > 0 && <SalesChart sales={analytics.data.sales} />}
+        </div>
+      </section>
+
+      <section aria-labelledby="status-title" className={card} style={stagger(5)}>
+        <h2 id="status-title" className="text-lead font-bold text-ink">
+          Status pesanan
+        </h2>
+        {analytics.data ? <StatusBars data={analytics.data} /> : <p className="mt-3 text-small text-quiet">Memuat status pesanan.</p>}
+      </section>
+    </div>
+  );
+}
+
+function StatusBars({ data }: { data: EventAnalytics }) {
+  const orders = data.statuses.reduce((n, s) => n + s.orders, 0);
+  const paid = data.statuses.find((s) => s.status === "PAID")?.orders ?? 0;
+  return (
+    <>
+      <p className="mt-1 text-small text-quiet">
+        {orders === 0
+          ? "Belum ada pesanan."
+          : `${formatCount(paid)} dari ${formatCount(orders)} pesanan lunas (${formatPercent(paid / orders)}).`}
+      </p>
+      <ul className="mt-5 flex flex-col gap-4">
+        {data.statuses.map((s) => (
+          <li key={s.status} className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-3 text-small">
+              <span className="text-ink">{STATUS[s.status].label}</span>
+              <span className="tabular-nums text-graphite">
+                {formatCount(s.orders)} pesanan, {formatCount(s.quantity)} kursi
+              </span>
+            </div>
+            <Bar value={s.orders} max={orders} label={STATUS[s.status].label} fillClassName={STATUS[s.status].fill} trackClassName="bg-canvas" />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

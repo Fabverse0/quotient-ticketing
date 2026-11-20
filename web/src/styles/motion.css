@@ -140,6 +140,11 @@
   transition: stroke-dasharray var(--dur-smooth) var(--ease-smooth);
 }
 
+/* A chart line draws itself from the left; the path is normalised with pathLength=1. */
+.line-draw {
+  transition: stroke-dashoffset 1.8s var(--ease-smooth);
+}
+
 .soft {
   transition:
     background-color var(--dur-fast) var(--ease-smooth),
