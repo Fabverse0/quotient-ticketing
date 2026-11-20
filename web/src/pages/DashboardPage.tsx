@@ -1,10 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError, messageFor } from "../api/errors";
-import { checkInvariants, getMyEvent, recentOrders, type InvariantReport, type OrganizerEvent } from "../api/organizer";
-import { Button } from "../components/Button";
-import { DottedList } from "../components/DottedList";
+import { getMyEvent, recentOrders, type OrganizerEvent } from "../api/organizer";
+import { InvariantPanel } from "../components/InvariantPanel";
 import { LiveNumber } from "../components/LiveNumber";
 import { LiveStatus } from "../components/LiveStatus";
 import { OrderStatus } from "../components/OrderStatus";
@@ -13,7 +12,6 @@ import { Reveal } from "../components/Reveal";
 import { SeatMap } from "../components/SeatMap";
 import { POLL_MS } from "../hooks/useLiveStream";
 import { useOrganizerStream } from "../hooks/useOrganizerStream";
-import { useShake } from "../hooks/useShake";
 import { formatCount, formatDateTime, formatRupiah, kindLabel } from "../lib/format";
 import { serverNow } from "../lib/serverClock";
 
@@ -147,66 +145,6 @@ function Figure({ label, value }: { label: string; value: number }) {
         <LiveNumber value={value} />
       </dd>
     </div>
-  );
-}
-
-function InvariantPanel({ eventId }: { eventId: string }) {
-  const { ref, shake } = useShake<HTMLElement>();
-  const check = useMutation({ mutationFn: () => checkInvariants(eventId) });
-  const report: InvariantReport | undefined = check.data;
-  const rejected = check.isError || (report !== undefined && !report.ok);
-
-  // After the render that adds the red border: React rewrites className, which
-  // would cancel a shake started earlier.
-  useEffect(() => {
-    if (rejected) shake();
-  }, [rejected, check.submittedAt, shake]);
-
-  return (
-    <section
-      ref={ref}
-      aria-labelledby="invariant-title"
-      className={`flex flex-col gap-5 rounded-ui bg-wall p-6 ${report && !report.ok ? "border border-oxblood" : ""}`}
-    >
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="invariant-title" className="font-display text-lead text-ink">
-          Pemeriksaan invariant
-        </h2>
-        <Button variant="secondary" onClick={() => check.mutate()} busy={check.isPending}>
-          {check.isPending ? "Memeriksa" : "Jalankan pemeriksaan"}
-        </Button>
-      </div>
-
-      {!report && !check.isError && (
-        <p className="text-small text-quiet">
-          Membandingkan counter kuota dengan pesanan dan tiket yang tercatat untuk event ini.
-        </p>
-      )}
-      {check.isError && (
-        <p role="alert" className="text-small text-oxblood">
-          {messageFor(check.error)}
-        </p>
-      )}
-      {report && (
-        <>
-          <DottedList
-            rows={report.checks.map((c) => ({
-              label: <span className={c.ok ? "" : "text-oxblood"}>{c.description}</span>,
-              value: (
-                <span className={`font-normal ${c.ok ? "text-sage" : "text-oxblood"}`}>
-                  {Object.values(c.values).join(" / ")}
-                </span>
-              ),
-            }))}
-          />
-          <p role="status" className={`text-small ${report.ok ? "text-sage" : "text-oxblood"}`}>
-            {report.ok
-              ? "Semua cocok."
-              : `${report.checks.filter((c) => !c.ok).length} pemeriksaan dilanggar. Lihat baris berwarna merah.`}
-          </p>
-        </>
-      )}
-    </section>
   );
 }
 
