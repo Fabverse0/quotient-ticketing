@@ -91,7 +91,7 @@ Bold (700) hanya untuk harga dan tombol utama. Semua angka memakai `font-variant
 ## Halaman
 
 ### Navigasi
-Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan (Event, Tiket saya, Masuk atau nama akun), 14px, warna slate, tanpa latar dan tanpa border.
+Monogram "Q" di dalam lingkaran tipis di kiri. Tautan teks di kanan, 14px: pembeli melihat Event, Pesanan, Tiket saya, dan Keluar; organizer melihat Event saya, Buat event, dan Keluar; tamu melihat Event dan Masuk; nama akun tampil di layar lebar, warna slate, tanpa latar dan tanpa border.
 
 ### Daftar event (pembeli)
 - Paragraf pembuka sebagai hero, tanpa judul besar dan tanpa tombol.
