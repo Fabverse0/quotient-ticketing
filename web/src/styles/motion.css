@@ -111,3 +111,38 @@
     opacity: 1;
   }
 }
+
+/* Dashboard motion: slow, soft, and never on a loop. Only transform and opacity.
+   --i staggers a group of cards; .grow-x lets a bar or ring scale in from its start. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(var(--rise-distance)); }
+  to { opacity: 1; transform: none; }
+}
+
+.rise {
+  animation: rise var(--dur-smooth) var(--ease-smooth) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+.grow-x {
+  transform-origin: left center;
+  transition: transform var(--dur-smooth) var(--ease-smooth);
+}
+
+.grow-y {
+  transform-origin: center bottom;
+  transition: transform var(--dur-smooth) var(--ease-smooth);
+}
+
+.soft {
+  transition:
+    background-color var(--dur-fast) var(--ease-smooth),
+    color var(--dur-fast) var(--ease-smooth),
+    opacity var(--dur-fast) var(--ease-smooth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}

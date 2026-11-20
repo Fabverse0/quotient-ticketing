@@ -21,6 +21,16 @@
   --color-oxblood: #7a2e2a;
   --color-inkblue: #2f4858;
 
+  /* Dashboard organizer only: calm tints that sit with the neutrals and the two
+     accents. Contrast checked: canvas 8.65, blue-mist 5.58 and umber-light 4.87
+     on inkblue; ink 10.21 on blue-wash. */
+  --color-inkblue-deep: #243845;
+  --color-blue-mist: #b8c8d1;
+  --color-blue-wash: #e2e8eb;
+  --color-clay: #e8dccf;
+  --color-sage-wash: #e3e7da;
+  --color-umber-light: #e0b07a;
+
   /* WCAG AA for small text: ash (2.1:1) and ochre (3.3:1) fail on canvas, so
      text uses these; ash and ochre stay for lines, borders and large marks. */
   --color-quiet: #666666;
@@ -49,6 +59,10 @@
   --radius-cover: 4px;
   --radius-tag: 3px;
   --radius-seat: 1px;
+  /* Large radii belong to the organizer dashboard only. */
+  --radius-shell: 28px;
+  --radius-card: 22px;
+  --radius-chip: 12px;
 
   --shadow-rest: 0 5px 15px rgba(90, 50, 40, 0.15), 0 4px 8px rgba(80, 40, 30, 0.1);
   --shadow-lift: 0 5px 10px rgba(100, 60, 50, 0.1), 0 15px 25px rgba(100, 60, 50, 0.4);
@@ -75,6 +89,11 @@
   --lift-distance: -10px;
   --enter-distance: 20px;
   --ease: ease;
+  /* Dashboard: slow and soft, once on arrival and when a value changes. */
+  --dur-smooth: 1.2s;
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --stagger: 90ms;
+  --rise-distance: 16px;
 
   --focus-ring: 0 0 0 3px rgba(51, 51, 51, 0.18);
   --underline: rgba(0, 0, 0, 0.15);

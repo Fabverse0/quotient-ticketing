@@ -47,6 +47,22 @@ Aturan:
 - Tidak ada warna lain di luar tabel ini.
 - Tidak ada gradien, glow, atau glassmorphism.
 
+### Dashboard organizer: warna tambahan
+
+Hanya dashboard organizer yang memakai tint lembut di bawah ini. Semuanya turunan dari warna yang sudah ada, tanpa gradien dan tanpa cahaya.
+
+| Token | Nilai | Dipakai untuk |
+|---|---|---|
+| `--color-inkblue` | `#2F4858` | Sidebar, kartu utama, dan Reguler di grafik |
+| `--color-inkblue-deep` | `#243845` | Item sidebar aktif dan bayangan kartu utama |
+| `--color-blue-mist` | `#B8C8D1` | Teks sekunder di atas inkblue (5,58:1) |
+| `--color-blue-wash` | `#E2E8EB` | Latar kartu Reguler dan chip |
+| `--color-clay` | `#E8DCCF` | Latar kartu VIP dan chip |
+| `--color-sage-wash` | `#E3E7DA` | Latar status baik |
+| `--color-umber-light` | `#E0B07A` | VIP dan ekor logo di atas inkblue (4,87:1) |
+
+Perbandingan tipe tiket selalu sama: Reguler inkblue, VIP umber.
+
 ## Tipografi
 
 | Peran | Font | Bobot | Catatan |
