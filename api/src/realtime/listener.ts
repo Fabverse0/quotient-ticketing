@@ -13,10 +13,8 @@ interface ListenerOptions {
   retryMs: number;
 }
 
-// A dedicated client outside the pool: a pooled connection would be handed to
-// queries and its LISTEN would end up on whichever request borrows it next.
-// The hub also reads counters on it, so a push never queues behind a pool full
-// of order requests (a 200-order burst would otherwise hold it back to the end).
+// Outside the pool, so LISTEN stays on one connection; the hub reads counters on
+// it too, so a push never queues behind a pool full of order requests.
 export function listenForQuotaChanges({ connectionString, onNotify, onStatus, retryMs }: ListenerOptions) {
   let client: Client | undefined;
   let stopped = false;
