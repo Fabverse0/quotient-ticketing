@@ -128,9 +128,14 @@ Kode error yang dipakai:
 
 Mengisi beberapa event fiktif dan pesanan dalam setiap status, lewat logika bisnis asli (bukan menulis baris langsung), sehingga semua invariant tetap OK. Stack harus sudah berjalan, dan Node.js 22 diperlukan di mesin host.
 
-```bash
+Perintah di bawah ditulis untuk PowerShell (Windows). Variabel lingkungan diisi dulu dengan `$env:`, baru perintahnya dijalankan.
+
+```powershell
 npm --prefix api ci
-DATABASE_URL=postgres://quotient:quotient@localhost:5433/quotient npm --prefix api run demo-data
+```
+
+```powershell
+$env:DATABASE_URL="postgres://quotient:quotient@localhost:5433/quotient"; npm --prefix api run demo-data
 ```
 
 Login demo: organizer `admin@gmail.com` / `admin123`, pembeli `pembeli1@quotient.local` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
@@ -139,8 +144,11 @@ Login demo: organizer `admin@gmail.com` / `admin123`, pembeli `pembeli1@quotient
 
 Uji ini menjawab pertanyaan utama proyek: apakah kuota bisa terjual lebih kalau banyak orang memesan di detik yang sama?
 
-```bash
+```powershell
 npm --prefix api ci
+```
+
+```powershell
 node tools/demo.mjs
 ```
 
@@ -176,12 +184,34 @@ Yang terlihat:
 - **Naive meloloskan semua 200 pesanan untuk kuota 100**, sementara counter `reserved` hanya tercatat 17 sampai 24. Hampir setiap transaksi membaca angka lama lalu menimpa tulisan transaksi lain.
 - **CHECK `sold + reserved <= quota` tidak menangkapnya**, karena counter justru terlalu kecil. Oversell hanya terlihat dari invariant checker, yang membandingkan kuota dengan pesanan yang benar-benar tercatat: 200 pesanan aktif untuk kuota 100, dan `reserved` 17 sampai 24 untuk 200 pesanan PENDING.
 
+### Menjalankan uji 200 pesanan satu per satu
+
+Untuk mencoba 200 pembeli dengan kuota 100 di stack dev yang sedang menyala (bukan di database terpisah milik `demo.mjs`), jalankan tiga langkah ini berurutan. Langkah 1 membuat satu event (Reguler kuota 100) dan 200 akun pembeli atas nama admin.
+
+```powershell
+$env:API_URL="http://localhost:3000"; $env:ORGANIZER_EMAIL="admin@gmail.com"; $env:ORGANIZER_PASSWORD="admin123"; node tools/load-test/seed.mjs
+```
+
+Langkah 2: k6 mengirim 200 `POST /orders` bersamaan dari container Docker.
+
+```powershell
+docker run --rm --network quotient_default --mount "type=bind,source=$PWD\tools\load-test,target=/scripts" -w /scripts -e API_URL=http://api:3000 -e RESULT_LABEL=manual grafana/k6:2.3.0 run --quiet /scripts/orders.js
+```
+
+Langkah 3: invariant checker.
+
+```powershell
+$env:DATABASE_URL="postgres://quotient:quotient@localhost:5433/quotient"; npm --prefix api run invariants
+```
+
+Dengan strategi `atomic` (bawaan), hasilnya tepat 100 pesanan 201 dan 100 pesanan 409, dan semua invariant OK. Rincian lain ada di [tools/load-test/README.md](tools/load-test/README.md).
+
 Ringkasan tiap run tersimpan di `tools/load-test/results/` (di-gitignore). Langkah-langkahnya bisa dijalankan satu per satu terhadap stack dev (seed 200 pembeli, k6 lewat Docker, lalu invariant checker), lihat [tools/load-test/README.md](tools/load-test/README.md).
 
 ### Invariant checker
 
-```bash
-DATABASE_URL=postgres://quotient:quotient@localhost:5433/quotient npm --prefix api run invariants
+```powershell
+$env:DATABASE_URL="postgres://quotient:quotient@localhost:5433/quotient"; npm --prefix api run invariants
 ```
 
 Memeriksa enam hal: `reserved` dan `sold` sesuai dengan pesanan PENDING dan PAID, jumlah tiket sama dengan `sold`, counter dan pesanan aktif tidak melebihi kuota, dan tidak ada pembeli dengan lebih dari 4 tiket aktif per event. Exit code 0 kalau semua OK dan 1 kalau ada yang LANGGAR. Organizer bisa melihat laporan yang sama di `GET /admin/invariants`.
