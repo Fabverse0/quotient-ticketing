@@ -191,7 +191,7 @@ Frontend pembeli (web/):
 - Hitung mundur pesanan memakai `expires_at` dan selisih jam server: `lib/serverClock.ts` mengambil median 5 sampel dari header `Date` tiap respons (resolusi satu detik, ditambah 500 ms). Saat waktu habis tampilan langsung Kedaluwarsa dan tombol bayar hilang tanpa menunggu sweeper.
 - Pembayaran simulasi: respons 404 `NOT_FOUND` dari `/orders/:id/pay` dijelaskan sebagai "hanya tersedia di mode development".
 - QR memakai `uqr` 0.1.3 (sekitar 4,3 KB gzip): matriksnya digambar sendiri sebagai satu path SVG dengan warna token, bukan string SVG dari library. Isi QR adalah kode tiket. "Lot" di kartu tiket adalah 6 karakter pertama ID pesanan, "Kursi n dari m" adalah `seq` dari jumlah tiket pesanan itu.
-- Data demo: `npm --prefix api run demo-data` (lihat DECISIONS.md bagian 15). Login demo: `organizer@quotient.local` / `organizer-demo-pass`, dan `pembeli1` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
+- Data demo: `npm --prefix api run demo-data` (lihat DECISIONS.md bagian 15). Login demo: `admin@gmail.com` / `admin123`, dan `pembeli1` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
 
 Organizer (API dan web):
 - `GET /organizer/events`: event milik pemanggil beserta counter (`quota`, `sold`, `reserved`, `remaining`), urut `startsAt`. Route `/organizer/events` semuanya khusus organizer.

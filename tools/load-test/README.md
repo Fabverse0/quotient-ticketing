@@ -13,7 +13,7 @@ Langkah-langkahnya bisa juga dijalankan satu per satu terhadap stack yang sudah 
 Membuat satu event (Reguler kuota 100) dan 200 akun pembeli lewat API, lalu menyimpan token mereka ke `tools/load-test/.data/seed.json` (di-gitignore).
 
 ```bash
-API_URL=http://localhost:3000 ORGANIZER_EMAIL=organizer@quotient.local ORGANIZER_PASSWORD=organizer-demo-pass node tools/load-test/seed.mjs
+API_URL=http://localhost:3000 ORGANIZER_EMAIL=admin@gmail.com ORGANIZER_PASSWORD=admin123 node tools/load-test/seed.mjs
 ```
 
 `BUYERS` dan `QUOTA` bisa diubah lewat env.

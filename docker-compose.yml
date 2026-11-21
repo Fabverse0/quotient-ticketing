@@ -36,8 +36,8 @@ services:
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-dev-only-webhook-secret-change-before-real-use}
       SWEEPER_ENABLED: ${SWEEPER_ENABLED:-true}
       SWEEPER_INTERVAL_MS: ${SWEEPER_INTERVAL_MS:-30000}
-      ORGANIZER_EMAIL: ${ORGANIZER_EMAIL:-organizer@quotient.local}
-      ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-organizer-demo-pass}
+      ORGANIZER_EMAIL: ${ORGANIZER_EMAIL:-admin@gmail.com}
+      ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-admin123}
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
     healthcheck:

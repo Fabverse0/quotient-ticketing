@@ -13,8 +13,8 @@ import { createDatabase } from "../../api/src/shared/db/client.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const ORGANIZER = {
-  email: process.env.DEMO_ORGANIZER_EMAIL ?? "organizer@quotient.local",
-  password: process.env.DEMO_ORGANIZER_PASSWORD ?? "organizer-demo-pass",
+  email: process.env.DEMO_ORGANIZER_EMAIL ?? "admin@gmail.com",
+  password: process.env.DEMO_ORGANIZER_PASSWORD ?? "admin123",
 };
 const BUYER_PASSWORD = "pembeli-demo-pass";
 const NAMED_BUYERS = ["Ayu Lestari", "Bima Pratama", "Citra Wulandari"];
