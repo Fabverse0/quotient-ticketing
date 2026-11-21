@@ -43,7 +43,7 @@ Akun bawaan untuk development (rahasia dan password ini hanya untuk lokal, janga
 
 | Peran | Email | Password |
 |---|---|---|
-| Organizer | `organizer@quotient.local` | `organizer-demo-pass` |
+| Organizer | `admin@gmail.com` | `admin123` |
 | Pembeli | daftar sendiri di `/daftar` | bebas, minimal 8 karakter |
 
 Nilai bawaan bisa diganti lewat variabel lingkungan atau file `.env`; daftar lengkapnya ada di [.env.example](.env.example). Rahasia bawaan (`JWT_SECRET` dan `PAYMENT_WEBHOOK_SECRET`, berawalan `dev-only-`) ditolak API saat `NODE_ENV=production`, jadi tidak bisa terbawa ke lingkungan nyata tanpa sengaja.
@@ -133,7 +133,7 @@ npm --prefix api ci
 DATABASE_URL=postgres://quotient:quotient@localhost:5433/quotient npm --prefix api run demo-data
 ```
 
-Login demo: organizer `organizer@quotient.local` / `organizer-demo-pass`, pembeli `pembeli1@quotient.local` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
+Login demo: organizer `admin@gmail.com` / `admin123`, pembeli `pembeli1@quotient.local` sampai `pembeli12@quotient.local` / `pembeli-demo-pass`.
 
 ## Bukti: 200 pembeli, kuota 100
 
