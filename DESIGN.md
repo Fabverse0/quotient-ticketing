@@ -127,7 +127,7 @@ Kartu dengan hitung mundur besar dalam Marcellus (menit:detik), label status oke
 Satu kartu per kursi, berbingkai ganda dengan bayangan hangat: segel LUNAS di pojok kanan atas, label "Tiket · Lot · Kursi 1 dari 2", nama event Marcellus kapital, tipe dan waktu, garis sobek putus putus, lalu kode tiket monospace dan QR code.
 
 ### Riwayat pesanan
-Daftar baris dengan garis tipis, bukan kartu. Nama event, jumlah tiket, label status berwarna, dan waktu.
+Satu kartu per pesanan, berbentuk potongan tiket (sudut 5px, latar wall). Di kiri tanggal mulai event dalam bingkai garis ganda dengan keterangan "Mulai", lalu garis sobek putus-putus, lalu nama event Marcellus, waktu dipesan, label status, jumlah dan tipe tiket, dan total harga. Pesanan yang menunggu bayar menampilkan "Bayar dalam mm:ss" berwarna oker. Di bawah judul ada ringkasan "N pesanan, M sudah lunas". Kartu muncul bergantian sekali saat halaman dibuka.
 
 ### Area organizer: shell, Ringkasan, Analitik
 
